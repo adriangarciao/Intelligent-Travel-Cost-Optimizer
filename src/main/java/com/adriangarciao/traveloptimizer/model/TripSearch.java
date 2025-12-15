@@ -1,0 +1,47 @@
+package com.adriangarciao.traveloptimizer.model;
+
+import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.util.List;
+import java.util.UUID;
+
+/**
+ * JPA entity capturing a trip search submitted by a user.
+ *
+ * This entity is intentionally simple for the initial iteration and will
+ * be expanded when persistence requirements are finalized.
+ */
+@Entity
+@Table(name = "trip_search")
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class TripSearch {
+    @Id
+    @GeneratedValue
+    private UUID id;
+
+    private String origin;
+    private String destination;
+
+    private LocalDate earliestDepartureDate;
+    private LocalDate latestDepartureDate;
+    private LocalDate earliestReturnDate;
+    private LocalDate latestReturnDate;
+
+    private BigDecimal maxBudget;
+    private int numTravelers;
+
+    private Instant createdAt;
+
+    @OneToMany(mappedBy = "tripSearch", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<TripOption> options;
+}
