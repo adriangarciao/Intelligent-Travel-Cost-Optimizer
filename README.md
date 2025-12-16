@@ -26,6 +26,12 @@ Unit and integration tests are executed with Maven. Integration tests use Testco
 mvn test
 ```
 
+CI
+
+- The repository includes a GitHub Actions workflow `CI` that runs Maven tests on push/PR to `main`.
+
+![CI](https://github.com/adriangarciao/Intelligent-Travel-Cost-Optimizer/actions/workflows/ci.yml/badge.svg)
+
 Notes
 
 - Do not commit secrets. `.env` is ignored and `.env.example` provides placeholders.

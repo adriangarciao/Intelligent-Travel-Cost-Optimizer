@@ -78,9 +78,7 @@ public class TripSearchIntegrationTest {
 
                 ResponseEntity<String> resp = rt.postForEntity("http://localhost:" + port + "/api/trips/search", entity, String.class);
 
-                // Debug output to help diagnose failures in CI or local runs
-                System.out.println("Integration test response status: " + resp.getStatusCode().value());
-                System.out.println("Integration test response body: " + resp.getBody());
+                // No debug prints in CI
 
                 assertThat(resp.getStatusCode().is2xxSuccessful()).isTrue();
                 assertThat(resp.getBody()).contains("SFO").contains("JFK");
