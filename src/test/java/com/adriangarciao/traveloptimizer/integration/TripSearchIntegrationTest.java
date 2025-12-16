@@ -43,6 +43,14 @@ public class TripSearchIntegrationTest {
             props.put("spring.datasource.url", postgres.getJdbcUrl());
             props.put("spring.datasource.username", postgres.getUsername());
             props.put("spring.datasource.password", postgres.getPassword());
+            // Disable Spring Security auto-config for this integration test so the
+            // endpoint is reachable without authentication during the programmatic startup.
+            props.put("spring.autoconfigure.exclude", "org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration,org.springframework.boot.autoconfigure.security.servlet.UserDetailsServiceAutoConfiguration,org.springframework.boot.autoconfigure.security.servlet.SecurityFilterAutoConfiguration");
+            // Provide a known user so we can exercise the endpoint with Basic Auth if needed.
+            props.put("spring.security.user.name", "test");
+            props.put("spring.security.user.password", "test");
+            // Activate test profile that will disable security via TestSecurityConfig
+            props.put("spring.profiles.active", "test-no-security");
             props.put("server.port", 0);
 
             SpringApplication app = new SpringApplication(TraveloptimizerApplication.class);
@@ -64,9 +72,15 @@ public class TripSearchIntegrationTest {
 
                 HttpHeaders headers = new HttpHeaders();
                 headers.setContentType(MediaType.APPLICATION_JSON);
+                // include basic auth credentials matching the properties above
+                headers.setBasicAuth("test", "test");
                 HttpEntity<TripSearchRequestDTO> entity = new HttpEntity<>(req, headers);
 
                 ResponseEntity<String> resp = rt.postForEntity("http://localhost:" + port + "/api/trips/search", entity, String.class);
+
+                // Debug output to help diagnose failures in CI or local runs
+                System.out.println("Integration test response status: " + resp.getStatusCode().value());
+                System.out.println("Integration test response body: " + resp.getBody());
 
                 assertThat(resp.getStatusCode().is2xxSuccessful()).isTrue();
                 assertThat(resp.getBody()).contains("SFO").contains("JFK");
