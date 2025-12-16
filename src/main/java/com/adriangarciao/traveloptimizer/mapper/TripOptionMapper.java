@@ -20,7 +20,9 @@ public interface TripOptionMapper {
     @Mapping(target = "tripOptionId", source = "id")
     TripOptionSummaryDTO toDto(TripOption entity);
 
-    @Mapping(target = "id", source = "tripOptionId")
+    // When mapping a DTO to an entity for new persistence, ignore the id
+    // to avoid passing a detached entity (pre-set id) to JPA's persist.
+    @Mapping(target = "id", ignore = true)
     TripOption toEntity(TripOptionSummaryDTO dto);
 
     FlightSummaryDTO flightToDto(FlightOption flight);
