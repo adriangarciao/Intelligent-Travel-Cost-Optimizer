@@ -1,5 +1,85 @@
 package com.adriangarciao.traveloptimizer.integration;
 
+import com.adriangarciao.traveloptimizer.dto.TripSearchRequestDTO;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assumptions;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.web.client.TestRestTemplate;
+import org.springframework.boot.web.server.LocalServerPort;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
+import org.testcontainers.containers.PostgreSQLContainer;
+import org.testcontainers.junit.jupiter.Container;
+import org.testcontainers.junit.jupiter.Testcontainers;
+import org.testcontainers.utility.DockerImageName;
+import org.testcontainers.DockerClientFactory;
+
+import java.math.BigDecimal;
+import java.time.LocalDate;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+/**
+ * Integration test that uses Testcontainers to start a real PostgreSQL database
+ * and boots the Spring Boot application with a random port. The test activates
+ * the `test-no-security` profile (test-only) so endpoints are reachable.
+ */
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@Testcontainers
+@ActiveProfiles("test-no-security")
+public class TripSearchIntegrationTest {
+
+    // Single static container reused for all tests in this class.
+    @Container
+    public static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>(
+            DockerImageName.parse("postgres:15-alpine")
+    ).withDatabaseName("travelassistant")
+     .withUsername("postgres")
+     .withPassword("postgres");
+
+    @DynamicPropertySource
+    static void registerPgProperties(DynamicPropertyRegistry registry) {
+        registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
+        registry.add("spring.datasource.username", POSTGRES::getUsername);
+        registry.add("spring.datasource.password", POSTGRES::getPassword);
+    }
+
+    private final TestRestTemplate restTemplate;
+    private final int port;
+
+    @Autowired
+    public TripSearchIntegrationTest(TestRestTemplate restTemplate, @LocalServerPort int port) {
+        this.restTemplate = restTemplate;
+        this.port = port;
+    }
+
+    @BeforeAll
+    static void assumeDockerAvailable() {
+        Assumptions.assumeTrue(DockerClientFactory.instance().isDockerAvailable(), "Docker not available, skipping Testcontainers-based integration tests");
+    }
+
+    @Test
+    void searchEndpoint_returnsOkAndPayload() {
+        TripSearchRequestDTO req = TripSearchRequestDTO.builder()
+                .origin("SFO")
+                .destination("JFK")
+                .earliestDepartureDate(LocalDate.now().plusDays(10))
+                .latestDepartureDate(LocalDate.now().plusDays(12))
+                .maxBudget(BigDecimal.valueOf(2000))
+                .numTravelers(1)
+                .build();
+
+        var response = restTemplate.postForEntity("http://localhost:" + port + "/api/trips/search", req, String.class);
+
+        assertThat(response.getStatusCode().is2xxSuccessful()).isTrue();
+        assertThat(response.getBody()).contains("SFO").contains("JFK");
+    }
+}
+package com.adriangarciao.traveloptimizer.integration;
+
 import com.adriangarciao.traveloptimizer.TraveloptimizerApplication;
 import com.adriangarciao.traveloptimizer.dto.TripSearchRequestDTO;
 import org.junit.jupiter.api.Test;
@@ -29,62 +109,39 @@ import static org.assertj.core.api.Assertions.assertThat;
 public class TripSearchIntegrationTest {
 
     @Test
-    void searchEndpoint_returnsOkAndPayload_whenDockerAvailable() {
-        Assumptions.assumeTrue(DockerClientFactory.instance().isDockerAvailable(), "Docker not available, skipping integration test");
-
-        try (PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:15-alpine")
-                .withDatabaseName("travelassistant")
-                .withUsername("postgres")
-                .withPassword("postgres")) {
-
+    @SpringBootTest
+    @Testcontainers
+    static class TripSearchIntegrationTest {
+        @DynamicPropertySource
+        static void configureDatabase(DynamicPropertyRegistry registry) {
+            PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:15-alpine")
+                    .withDatabaseName("travelassistant")
+                    .withUsername("postgres")
+                    .withPassword("postgres");
             postgres.start();
+            registry.add("spring.datasource.url", postgres::getJdbcUrl);
+            registry.add("spring.datasource.username", postgres::getUsername);
+            registry.add("spring.datasource.password", postgres::getPassword);
+        }
 
-            Map<String, Object> props = new HashMap<>();
-            props.put("spring.datasource.url", postgres.getJdbcUrl());
-            props.put("spring.datasource.username", postgres.getUsername());
-            props.put("spring.datasource.password", postgres.getPassword());
-            // Disable Spring Security auto-config for this integration test so the
-            // endpoint is reachable without authentication during the programmatic startup.
-            props.put("spring.autoconfigure.exclude", "org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration,org.springframework.boot.autoconfigure.security.servlet.UserDetailsServiceAutoConfiguration,org.springframework.boot.autoconfigure.security.servlet.SecurityFilterAutoConfiguration");
-            // Provide a known user so we can exercise the endpoint with Basic Auth if needed.
-            props.put("spring.security.user.name", "test");
-            props.put("spring.security.user.password", "test");
-            // Activate test profile that will disable security via TestSecurityConfig
-            props.put("spring.profiles.active", "test-no-security");
-            props.put("server.port", 0);
+        @Autowired
+        private TestRestTemplate restTemplate;
 
-            SpringApplication app = new SpringApplication(TraveloptimizerApplication.class);
-            app.setDefaultProperties(props);
-            ConfigurableApplicationContext ctx = app.run();
+        @Test
+        void searchEndpoint_returnsOkAndPayload() {
+            TripSearchRequestDTO req = TripSearchRequestDTO.builder()
+                    .origin("SFO")
+                    .destination("JFK")
+                    .earliestDepartureDate(LocalDate.now().plusDays(10))
+                    .latestDepartureDate(LocalDate.now().plusDays(12))
+                    .maxBudget(BigDecimal.valueOf(2000))
+                    .numTravelers(1)
+                    .build();
 
-            try {
-                int port = Integer.parseInt(ctx.getEnvironment().getProperty("local.server.port"));
-                RestTemplate rt = new RestTemplate();
+            ResponseEntity<String> resp = restTemplate.postForEntity("/api/trips/search", req, String.class);
 
-                TripSearchRequestDTO req = TripSearchRequestDTO.builder()
-                        .origin("SFO")
-                        .destination("JFK")
-                        .earliestDepartureDate(LocalDate.now().plusDays(10))
-                        .latestDepartureDate(LocalDate.now().plusDays(12))
-                        .maxBudget(BigDecimal.valueOf(2000))
-                        .numTravelers(1)
-                        .build();
-
-                HttpHeaders headers = new HttpHeaders();
-                headers.setContentType(MediaType.APPLICATION_JSON);
-                // include basic auth credentials matching the properties above
-                headers.setBasicAuth("test", "test");
-                HttpEntity<TripSearchRequestDTO> entity = new HttpEntity<>(req, headers);
-
-                ResponseEntity<String> resp = rt.postForEntity("http://localhost:" + port + "/api/trips/search", entity, String.class);
-
-                // No debug prints in CI
-
-                assertThat(resp.getStatusCode().is2xxSuccessful()).isTrue();
-                assertThat(resp.getBody()).contains("SFO").contains("JFK");
-            } finally {
-                SpringApplication.exit(ctx);
-            }
+            assertThat(resp.getStatusCode().is2xxSuccessful()).isTrue();
+            assertThat(resp.getBody()).contains("SFO").contains("JFK");
         }
     }
 }
