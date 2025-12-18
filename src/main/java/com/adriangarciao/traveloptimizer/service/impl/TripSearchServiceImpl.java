@@ -35,6 +35,7 @@ public class TripSearchServiceImpl implements TripSearchService {
     private final TripOptionRepository tripOptionRepository;
     private final TripSearchMapper tripSearchMapper;
     private final TripOptionMapper tripOptionMapper;
+        private final com.adriangarciao.traveloptimizer.client.MlClient mlClient;
 
     /**
      * No-arg constructor kept for simple unit tests that instantiate the
@@ -46,9 +47,9 @@ public class TripSearchServiceImpl implements TripSearchService {
         this.tripOptionRepository = null;
         this.tripSearchMapper = null;
         this.tripOptionMapper = null;
+                this.mlClient = null;
     }
 
-    @Autowired
     public TripSearchServiceImpl(TripSearchRepository tripSearchRepository,
                                  TripOptionRepository tripOptionRepository,
                                  TripSearchMapper tripSearchMapper,
@@ -57,7 +58,21 @@ public class TripSearchServiceImpl implements TripSearchService {
         this.tripOptionRepository = tripOptionRepository;
         this.tripSearchMapper = tripSearchMapper;
         this.tripOptionMapper = tripOptionMapper;
+                this.mlClient = null;
     }
+
+        @Autowired
+        public TripSearchServiceImpl(TripSearchRepository tripSearchRepository,
+                                                                 TripOptionRepository tripOptionRepository,
+                                                                 TripSearchMapper tripSearchMapper,
+                                                                 TripOptionMapper tripOptionMapper,
+                                                                 com.adriangarciao.traveloptimizer.client.MlClient mlClient) {
+                this.tripSearchRepository = tripSearchRepository;
+                this.tripOptionRepository = tripOptionRepository;
+                this.tripSearchMapper = tripSearchMapper;
+                this.tripOptionMapper = tripOptionMapper;
+                this.mlClient = mlClient;
+        }
 
     @Override
         @org.springframework.cache.annotation.Cacheable(value = "tripSearchCache", keyGenerator = "tripSearchKeyGenerator", unless = "#result == null")
@@ -95,6 +110,24 @@ public class TripSearchServiceImpl implements TripSearchService {
                     .recommendedReturnDate(LocalDate.now().plusDays(18))
                     .confidence(0.65)
                     .build();
+            // If an ML client is available, call it for updated predictions; otherwise return deterministic defaults
+            if (mlClient != null) {
+                try {
+                    MlBestDateWindowDTO mlWindow = mlClient.getBestDateWindow(request);
+                    MlRecommendationDTO rec = mlClient.getOptionRecommendation(option, request);
+                    option.setMlRecommendation(rec);
+                    return TripSearchResponseDTO.builder()
+                            .searchId(UUID.randomUUID())
+                            .origin(request.getOrigin())
+                            .destination(request.getDestination())
+                            .currency("USD")
+                            .options(Collections.singletonList(option))
+                            .mlBestDateWindow(mlWindow)
+                            .build();
+                } catch (Throwable t) {
+                    log.warn("ML call failed in dummy branch: {}", t.toString());
+                }
+            }
 
             return TripSearchResponseDTO.builder()
                     .searchId(UUID.randomUUID())
@@ -141,7 +174,30 @@ public class TripSearchServiceImpl implements TripSearchService {
 
         TripSearch saved = tripSearchRepository.save(toSave);
 
-        // Map saved entity to response DTO (IDs populated by DB/Hibernate)
-        return tripSearchMapper.toDto(saved);
+                // Map saved entity to response DTO (IDs populated by DB/Hibernate)
+                TripSearchResponseDTO dto = tripSearchMapper.toDto(saved);
+
+                // Enrich with ML predictions if available; failures are non-fatal and will be logged
+                if (mlClient != null) {
+                        try {
+                                MlBestDateWindowDTO mlWindow = mlClient.getBestDateWindow(request);
+                                dto.setMlBestDateWindow(mlWindow);
+
+                                if (dto.getOptions() != null) {
+                                        for (TripOptionSummaryDTO optionDto : dto.getOptions()) {
+                                                try {
+                                                        MlRecommendationDTO rec = mlClient.getOptionRecommendation(optionDto, request);
+                                                        optionDto.setMlRecommendation(rec);
+                                                } catch (Throwable t) {
+                                                        log.warn("ML option recommendation failed for option {}: {}", optionDto.getTripOptionId(), t.toString());
+                                                }
+                                        }
+                                }
+                        } catch (Throwable t) {
+                                log.warn("ML best-date-window call failed: {}", t.toString());
+                        }
+                }
+
+                return dto;
     }
 }
