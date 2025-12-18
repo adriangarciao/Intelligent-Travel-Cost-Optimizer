@@ -51,6 +51,8 @@
 			<artifactId>spring-boot-starter-webflux</artifactId>
 		</dependency>
 
+        <!-- Resilience tooling left out to avoid extra transitive changes; using lightweight retries instead -->
+
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-devtools</artifactId>
