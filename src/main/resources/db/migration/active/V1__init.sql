@@ -1,5 +1,3 @@
--- Flyway V1: initial schema for traveloptimizer
--- Creates core tables: trip_search, trip_option, flight_option, lodging_option
 -- Consolidated initial schema for Intelligent Travel Cost Optimizer
 
 CREATE TABLE IF NOT EXISTS trip_search (

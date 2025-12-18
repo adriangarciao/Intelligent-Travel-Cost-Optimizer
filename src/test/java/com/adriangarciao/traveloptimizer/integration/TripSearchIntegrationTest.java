@@ -1,6 +1,7 @@
 package com.adriangarciao.traveloptimizer.integration;
 
 import com.adriangarciao.traveloptimizer.dto.TripSearchRequestDTO;
+import com.adriangarciao.traveloptimizer.dto.TripSearchResponseDTO;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -82,9 +83,15 @@ public class TripSearchIntegrationTest {
                 .build();
 
         RestTemplate rest = new RestTemplate();
-        var response = rest.postForEntity("http://localhost:" + port + "/api/trips/search", req, String.class);
+        var response = rest.postForEntity("http://localhost:" + port + "/api/trips/search", req, TripSearchResponseDTO.class);
 
         assertThat(response.getStatusCode().is2xxSuccessful()).isTrue();
-        assertThat(response.getBody()).contains("SFO").contains("JFK");
+        TripSearchResponseDTO body = response.getBody();
+        assertThat(body).isNotNull();
+        assertThat(body.getSearchId()).isNotNull();
+        assertThat(body.getOrigin()).isEqualTo("SFO");
+        assertThat(body.getDestination()).isEqualTo("JFK");
+        assertThat(body.getOptions()).isNotEmpty();
+        assertThat(body.getOptions().get(0).getTripOptionId()).isNotNull();
     }
 }

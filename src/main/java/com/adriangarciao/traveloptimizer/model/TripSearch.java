@@ -32,19 +32,40 @@ public class TripSearch {
     @Column(name = "id", updatable = false, nullable = false)
     private UUID id;
 
+    @Column(name = "origin", length = 16, nullable = false)
     private String origin;
+
+    @Column(name = "destination", length = 16, nullable = false)
     private String destination;
 
+    @Column(name = "earliest_departure_date")
     private LocalDate earliestDepartureDate;
+
+    @Column(name = "latest_departure_date")
     private LocalDate latestDepartureDate;
+
+    @Column(name = "earliest_return_date")
     private LocalDate earliestReturnDate;
+
+    @Column(name = "latest_return_date")
     private LocalDate latestReturnDate;
 
+    @Column(name = "max_budget", precision = 19, scale = 2)
     private BigDecimal maxBudget;
+
+    @Column(name = "num_travelers")
     private int numTravelers;
 
+    @Column(name = "created_at")
     private Instant createdAt;
 
     @OneToMany(mappedBy = "tripSearch", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     private List<TripOption> options;
+
+    @PrePersist
+    public void prePersist() {
+        if (createdAt == null) {
+            createdAt = Instant.now();
+        }
+    }
 }

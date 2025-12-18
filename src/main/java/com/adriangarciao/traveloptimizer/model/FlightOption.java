@@ -9,6 +9,7 @@ import lombok.NoArgsConstructor;
 import java.time.Duration;
 import java.util.List;
 import java.util.UUID;
+import java.math.BigDecimal;
 
 /**
  * JPA entity capturing flight option details associated to a trip option.
@@ -29,6 +30,7 @@ public class FlightOption {
     private String airline;
     private String flightNumber;
     private int stops;
+    @Column(name = "duration")
     private Duration duration;
 
     @ElementCollection
@@ -36,5 +38,6 @@ public class FlightOption {
     @Column(name = "segment")
     private List<String> segments;
 
-    private double price; // placeholder
+    @Column(name = "price", precision = 19, scale = 2)
+    private BigDecimal price; // placeholder
 }

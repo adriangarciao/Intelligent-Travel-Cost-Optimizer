@@ -116,7 +116,7 @@ public class TripSearchServiceImpl implements TripSearchService {
                 .stops(0)
                 .duration(Duration.ofHours(5))
                 .segments(List.of(request.getOrigin() + "->" + request.getDestination()))
-                .price(499.99)
+                .price(java.math.BigDecimal.valueOf(499.99))
                 .build();
 
         com.adriangarciao.traveloptimizer.model.LodgingOption lodging = com.adriangarciao.traveloptimizer.model.LodgingOption.builder()

@@ -25,9 +25,18 @@ public class LodgingOption {
     @Column(name = "id", updatable = false, nullable = false)
     private UUID id;
 
+    @Column(name = "hotel_name", length = 255)
     private String hotelName;
+
+    @Column(name = "lodging_type", length = 64)
     private String lodgingType;
+
+    @Column(name = "rating")
     private double rating;
+
+    @Column(name = "price_per_night", precision = 19, scale = 2)
     private BigDecimal pricePerNight;
+
+    @Column(name = "nights")
     private int nights;
 }
