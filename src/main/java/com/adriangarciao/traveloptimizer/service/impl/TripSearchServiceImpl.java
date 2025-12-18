@@ -60,6 +60,7 @@ public class TripSearchServiceImpl implements TripSearchService {
     }
 
     @Override
+        @org.springframework.cache.annotation.Cacheable(value = "tripSearchCache", keyGenerator = "tripSearchKeyGenerator", unless = "#result == null")
     public TripSearchResponseDTO searchTrips(TripSearchRequestDTO request) {
         // If repositories/mappers are not available (unit tests), return a lightweight dummy response
         if (tripSearchRepository == null || tripSearchMapper == null) {
