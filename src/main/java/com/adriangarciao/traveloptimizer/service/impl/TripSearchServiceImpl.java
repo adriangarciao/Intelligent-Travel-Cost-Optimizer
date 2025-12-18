@@ -35,7 +35,10 @@ public class TripSearchServiceImpl implements TripSearchService {
     private final TripOptionRepository tripOptionRepository;
     private final TripSearchMapper tripSearchMapper;
     private final TripOptionMapper tripOptionMapper;
-        private final com.adriangarciao.traveloptimizer.client.MlClient mlClient;
+                private final com.adriangarciao.traveloptimizer.client.MlClient mlClient;
+                private final com.adriangarciao.traveloptimizer.provider.FlightSearchProvider flightSearchProvider;
+                private final com.adriangarciao.traveloptimizer.provider.LodgingSearchProvider lodgingSearchProvider;
+                private final com.adriangarciao.traveloptimizer.service.TripAssemblyService tripAssemblyService;
 
     /**
      * No-arg constructor kept for simple unit tests that instantiate the
@@ -48,6 +51,9 @@ public class TripSearchServiceImpl implements TripSearchService {
         this.tripSearchMapper = null;
         this.tripOptionMapper = null;
                 this.mlClient = null;
+                this.flightSearchProvider = null;
+                this.lodgingSearchProvider = null;
+                this.tripAssemblyService = null;
     }
 
     public TripSearchServiceImpl(TripSearchRepository tripSearchRepository,
@@ -59,19 +65,28 @@ public class TripSearchServiceImpl implements TripSearchService {
         this.tripSearchMapper = tripSearchMapper;
         this.tripOptionMapper = tripOptionMapper;
                 this.mlClient = null;
+                this.flightSearchProvider = null;
+                this.lodgingSearchProvider = null;
+                this.tripAssemblyService = null;
     }
 
         @Autowired
         public TripSearchServiceImpl(TripSearchRepository tripSearchRepository,
-                                                                 TripOptionRepository tripOptionRepository,
-                                                                 TripSearchMapper tripSearchMapper,
-                                                                 TripOptionMapper tripOptionMapper,
-                                                                 com.adriangarciao.traveloptimizer.client.MlClient mlClient) {
+                                     TripOptionRepository tripOptionRepository,
+                                     TripSearchMapper tripSearchMapper,
+                                     TripOptionMapper tripOptionMapper,
+                                     com.adriangarciao.traveloptimizer.client.MlClient mlClient,
+                                     com.adriangarciao.traveloptimizer.provider.FlightSearchProvider flightSearchProvider,
+                                     com.adriangarciao.traveloptimizer.provider.LodgingSearchProvider lodgingSearchProvider,
+                                     com.adriangarciao.traveloptimizer.service.TripAssemblyService tripAssemblyService) {
                 this.tripSearchRepository = tripSearchRepository;
                 this.tripOptionRepository = tripOptionRepository;
                 this.tripSearchMapper = tripSearchMapper;
                 this.tripOptionMapper = tripOptionMapper;
                 this.mlClient = mlClient;
+                this.flightSearchProvider = flightSearchProvider;
+                this.lodgingSearchProvider = lodgingSearchProvider;
+                this.tripAssemblyService = tripAssemblyService;
         }
 
     @Override
@@ -139,40 +154,47 @@ public class TripSearchServiceImpl implements TripSearchService {
                     .build();
         }
 
-        // Persist real entities and return DTO mapped from saved entities
-        log.info("Persisting TripSearch for {} -> {}", request.getOrigin(), request.getDestination());
-        TripSearch toSave = tripSearchMapper.toEntity(request);
+                // Persist real entities and return DTO mapped from saved entities
+                log.info("Persisting TripSearch for {} -> {}", request.getOrigin(), request.getDestination());
+                TripSearch toSave = tripSearchMapper.toEntity(request);
 
-        // Build dummy nested entities
-        com.adriangarciao.traveloptimizer.model.FlightOption flight = com.adriangarciao.traveloptimizer.model.FlightOption.builder()
-                .airline("ExampleAir")
-                .flightNumber("EA123")
-                .stops(0)
-                .duration(Duration.ofHours(5))
-                .segments(List.of(request.getOrigin() + "->" + request.getDestination()))
-                .price(java.math.BigDecimal.valueOf(499.99))
-                .build();
+                // Use providers to fetch external offers (providers may be null in tests)
+                List<com.adriangarciao.traveloptimizer.provider.FlightOffer> flights = null;
+                List<com.adriangarciao.traveloptimizer.provider.LodgingOffer> lodgings = null;
+                if (flightSearchProvider != null) {
+                        try {
+                                flights = flightSearchProvider.searchFlights(request);
+                        } catch (Throwable t) {
+                                log.warn("Flight provider failed: {}", t.toString());
+                                flights = List.of();
+                        }
+                }
+                if (lodgingSearchProvider != null) {
+                        try {
+                                lodgings = lodgingSearchProvider.searchLodging(request);
+                        } catch (Throwable t) {
+                                log.warn("Lodging provider failed: {}", t.toString());
+                                lodgings = List.of();
+                        }
+                }
 
-        com.adriangarciao.traveloptimizer.model.LodgingOption lodging = com.adriangarciao.traveloptimizer.model.LodgingOption.builder()
-                .hotelName("Demo Hotel")
-                .lodgingType("Hotel")
-                .rating(4.2)
-                .pricePerNight(BigDecimal.valueOf(120))
-                .nights(3)
-                .build();
+                List<TripOption> assembled = null;
+                if (tripAssemblyService != null) {
+                        assembled = tripAssemblyService.assembleTripOptions(request, flights, lodgings);
+                }
 
-        TripOption opt = TripOption.builder()
-                .totalPrice(BigDecimal.valueOf(499.99))
-                .currency("USD")
-                .valueScore(0.82)
-                .flightOption(flight)
-                .lodgingOption(lodging)
-                .tripSearch(toSave)
-                .build();
+                if (assembled == null || assembled.isEmpty()) {
+                        assembled = Collections.emptyList();
+                }
 
-        toSave.setOptions(Collections.singletonList(opt));
+                // Attach parent TripSearch to each option so JPA will persist relationship
+                for (TripOption o : assembled) {
+                        o.setTripSearch(toSave);
+                }
 
-        TripSearch saved = tripSearchRepository.save(toSave);
+                toSave.setOptions(assembled);
+
+                TripSearch saved = tripSearchRepository.save(toSave);
 
                 // Map saved entity to response DTO (IDs populated by DB/Hibernate)
                 TripSearchResponseDTO dto = tripSearchMapper.toDto(saved);
