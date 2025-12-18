@@ -21,7 +21,9 @@ import java.util.UUID;
 @AllArgsConstructor
 public class FlightOption {
     @Id
-    @GeneratedValue
+    @GeneratedValue(generator = "UUID")
+    @org.hibernate.annotations.GenericGenerator(name = "UUID", strategy = "org.hibernate.id.UUIDGenerator")
+    @Column(name = "id", updatable = false, nullable = false)
     private UUID id;
 
     private String airline;
@@ -30,6 +32,8 @@ public class FlightOption {
     private Duration duration;
 
     @ElementCollection
+    @CollectionTable(name = "flight_option_segments", joinColumns = @JoinColumn(name = "flight_option_id"))
+    @Column(name = "segment")
     private List<String> segments;
 
     private double price; // placeholder

@@ -61,82 +61,86 @@ public class TripSearchServiceImpl implements TripSearchService {
 
     @Override
     public TripSearchResponseDTO searchTrips(TripSearchRequestDTO request) {
-        // Build a single dummy trip option
-        TripOptionSummaryDTO option = TripOptionSummaryDTO.builder()
-                .tripOptionId(UUID.randomUUID())
-                .totalPrice(BigDecimal.valueOf(499.99))
-                .currency("USD")
-                .flight(FlightSummaryDTO.builder()
-                        .airline("ExampleAir")
-                        .flightNumber("EA123")
-                        .stops(0)
-                        .duration(Duration.ofHours(5))
-                        .segments(List.of(request.getOrigin() + "->" + request.getDestination()))
-                        .build())
-                .lodging(LodgingSummaryDTO.builder()
-                        .hotelName("Demo Hotel")
-                        .lodgingType("Hotel")
-                        .rating(4.2)
-                        .pricePerNight(BigDecimal.valueOf(120))
-                        .nights(3)
-                        .build())
-                .valueScore(0.82)
-                .mlRecommendation(MlRecommendationDTO.builder()
-                        .isGoodDeal(true)
-                        .priceTrend("stable")
-                        .note("Sample recommendation — integrate ML service for real data")
-                        .build())
-                .build();
+        // If repositories/mappers are not available (unit tests), return a lightweight dummy response
+        if (tripSearchRepository == null || tripSearchMapper == null) {
+            TripOptionSummaryDTO option = TripOptionSummaryDTO.builder()
+                    .tripOptionId(UUID.randomUUID())
+                    .totalPrice(BigDecimal.valueOf(499.99))
+                    .currency("USD")
+                    .flight(FlightSummaryDTO.builder()
+                            .airline("ExampleAir")
+                            .flightNumber("EA123")
+                            .stops(0)
+                            .duration(Duration.ofHours(5))
+                            .segments(List.of(request.getOrigin() + "->" + request.getDestination()))
+                            .build())
+                    .lodging(LodgingSummaryDTO.builder()
+                            .hotelName("Demo Hotel")
+                            .lodgingType("Hotel")
+                            .rating(4.2)
+                            .pricePerNight(BigDecimal.valueOf(120))
+                            .nights(3)
+                            .build())
+                    .valueScore(0.82)
+                    .mlRecommendation(MlRecommendationDTO.builder()
+                            .isGoodDeal(true)
+                            .priceTrend("stable")
+                            .note("Sample recommendation — integrate ML service for real data")
+                            .build())
+                    .build();
 
-        MlBestDateWindowDTO bestWindow = MlBestDateWindowDTO.builder()
-                .recommendedDepartureDate(LocalDate.now().plusDays(14))
-                .recommendedReturnDate(LocalDate.now().plusDays(18))
-                .confidence(0.65)
-                .build();
+            MlBestDateWindowDTO bestWindow = MlBestDateWindowDTO.builder()
+                    .recommendedDepartureDate(LocalDate.now().plusDays(14))
+                    .recommendedReturnDate(LocalDate.now().plusDays(18))
+                    .confidence(0.65)
+                    .build();
 
-        TripSearchResponseDTO response = TripSearchResponseDTO.builder()
-                .searchId(UUID.randomUUID())
-                .origin(request.getOrigin())
-                .destination(request.getDestination())
-                .currency("USD")
-                .options(Collections.singletonList(option))
-                .mlBestDateWindow(bestWindow)
-                .build();
-
-                // Persist the search and its generated option if repositories are available
-                if (tripSearchRepository != null && tripOptionMapper != null) {
-                        log.info("Attempting to persist TripSearch for {} -> {}", request.getOrigin(), request.getDestination());
-                        try {
-                TripSearch entity = (tripSearchMapper != null)
-                        ? tripSearchMapper.toEntity(request)
-                        : TripSearch.builder()
-                        .origin(request.getOrigin())
-                        .destination(request.getDestination())
-                        .earliestDepartureDate(request.getEarliestDepartureDate())
-                        .latestDepartureDate(request.getLatestDepartureDate())
-                        .earliestReturnDate(request.getEarliestReturnDate())
-                        .latestReturnDate(request.getLatestReturnDate())
-                        .maxBudget(request.getMaxBudget())
-                        .numTravelers(request.getNumTravelers())
-                        .createdAt(java.time.Instant.now())
-                        .build();
-
-                // Map and attach trip option
-                TripOption optEntity = tripOptionMapper.toEntity(option);
-                optEntity.setTripSearch(entity);
-
-                entity.setOptions(Collections.singletonList(optEntity));
-
-                                // Save the search (cascade will persist options if configured)
-                                tripSearchRepository.save(entity);
-                                log.debug("Persisted TripSearch id={}", entity.getId());
-                        } catch (Exception e) {
-                                // Log and continue — persistence should not break the API during early development
-                                log.error("Failed to persist TripSearch: {}", e.getMessage());
-                                log.debug("Persistence exception", e);
-                        }
+            return TripSearchResponseDTO.builder()
+                    .searchId(UUID.randomUUID())
+                    .origin(request.getOrigin())
+                    .destination(request.getDestination())
+                    .currency("USD")
+                    .options(Collections.singletonList(option))
+                    .mlBestDateWindow(bestWindow)
+                    .build();
         }
 
-        return response;
+        // Persist real entities and return DTO mapped from saved entities
+        log.info("Persisting TripSearch for {} -> {}", request.getOrigin(), request.getDestination());
+        TripSearch toSave = tripSearchMapper.toEntity(request);
+
+        // Build dummy nested entities
+        com.adriangarciao.traveloptimizer.model.FlightOption flight = com.adriangarciao.traveloptimizer.model.FlightOption.builder()
+                .airline("ExampleAir")
+                .flightNumber("EA123")
+                .stops(0)
+                .duration(Duration.ofHours(5))
+                .segments(List.of(request.getOrigin() + "->" + request.getDestination()))
+                .price(499.99)
+                .build();
+
+        com.adriangarciao.traveloptimizer.model.LodgingOption lodging = com.adriangarciao.traveloptimizer.model.LodgingOption.builder()
+                .hotelName("Demo Hotel")
+                .lodgingType("Hotel")
+                .rating(4.2)
+                .pricePerNight(BigDecimal.valueOf(120))
+                .nights(3)
+                .build();
+
+        TripOption opt = TripOption.builder()
+                .totalPrice(BigDecimal.valueOf(499.99))
+                .currency("USD")
+                .valueScore(0.82)
+                .flightOption(flight)
+                .lodgingOption(lodging)
+                .tripSearch(toSave)
+                .build();
+
+        toSave.setOptions(Collections.singletonList(opt));
+
+        TripSearch saved = tripSearchRepository.save(toSave);
+
+        // Map saved entity to response DTO (IDs populated by DB/Hibernate)
+        return tripSearchMapper.toDto(saved);
     }
 }

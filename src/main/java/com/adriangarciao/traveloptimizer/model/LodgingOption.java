@@ -20,7 +20,9 @@ import java.util.UUID;
 @AllArgsConstructor
 public class LodgingOption {
     @Id
-    @GeneratedValue
+    @GeneratedValue(generator = "UUID")
+    @org.hibernate.annotations.GenericGenerator(name = "UUID", strategy = "org.hibernate.id.UUIDGenerator")
+    @Column(name = "id", updatable = false, nullable = false)
     private UUID id;
 
     private String hotelName;

@@ -1,6 +1,7 @@
 package com.adriangarciao.traveloptimizer.model;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.GenericGenerator;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -26,7 +27,9 @@ import java.util.UUID;
 @AllArgsConstructor
 public class TripSearch {
     @Id
-    @GeneratedValue
+    @GeneratedValue(generator = "UUID")
+    @GenericGenerator(name = "UUID", strategy = "org.hibernate.id.UUIDGenerator")
+    @Column(name = "id", updatable = false, nullable = false)
     private UUID id;
 
     private String origin;
@@ -42,6 +45,6 @@ public class TripSearch {
 
     private Instant createdAt;
 
-    @OneToMany(mappedBy = "tripSearch", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "tripSearch", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     private List<TripOption> options;
 }

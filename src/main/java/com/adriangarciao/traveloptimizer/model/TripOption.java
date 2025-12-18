@@ -20,7 +20,9 @@ import java.util.UUID;
 @AllArgsConstructor
 public class TripOption {
     @Id
-    @GeneratedValue
+    @GeneratedValue(generator = "UUID")
+    @org.hibernate.annotations.GenericGenerator(name = "UUID", strategy = "org.hibernate.id.UUIDGenerator")
+    @Column(name = "id", updatable = false, nullable = false)
     private UUID id;
 
     private BigDecimal totalPrice;
@@ -31,11 +33,11 @@ public class TripOption {
     @JoinColumn(name = "trip_search_id")
     private TripSearch tripSearch;
 
-    @OneToOne(cascade = CascadeType.ALL)
+    @OneToOne(cascade = CascadeType.ALL, orphanRemoval = true)
     @JoinColumn(name = "flight_option_id")
     private FlightOption flightOption;
 
-    @OneToOne(cascade = CascadeType.ALL)
+    @OneToOne(cascade = CascadeType.ALL, orphanRemoval = true)
     @JoinColumn(name = "lodging_option_id")
     private LodgingOption lodgingOption;
 }
