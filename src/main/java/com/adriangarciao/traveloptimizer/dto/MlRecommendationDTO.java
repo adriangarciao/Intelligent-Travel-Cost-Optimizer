@@ -14,7 +14,11 @@ import java.io.Serializable;
 @NoArgsConstructor
 @AllArgsConstructor
 public class MlRecommendationDTO implements Serializable {
-    private boolean isGoodDeal;
+    private Boolean isGoodDeal;
     private String priceTrend; // e.g., "rising", "stable", "falling"
     private String note;
+
+    public boolean isGoodDeal() {
+        return Boolean.TRUE.equals(this.isGoodDeal);
+    }
 }

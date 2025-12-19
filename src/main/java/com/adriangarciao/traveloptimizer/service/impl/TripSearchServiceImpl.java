@@ -11,6 +11,7 @@ import com.adriangarciao.traveloptimizer.repository.TripSearchRepository;
 import com.adriangarciao.traveloptimizer.service.TripSearchService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.slf4j.MDC;
 
 import java.math.BigDecimal;
 import java.time.Duration;
@@ -35,6 +36,11 @@ public class TripSearchServiceImpl implements TripSearchService {
     private final TripOptionRepository tripOptionRepository;
     private final TripSearchMapper tripSearchMapper;
     private final TripOptionMapper tripOptionMapper;
+                private final com.adriangarciao.traveloptimizer.client.MlClient mlClient;
+                private final com.adriangarciao.traveloptimizer.provider.FlightSearchProvider flightSearchProvider;
+                private final com.adriangarciao.traveloptimizer.provider.LodgingSearchProvider lodgingSearchProvider;
+                private final com.adriangarciao.traveloptimizer.service.TripAssemblyService tripAssemblyService;
+                private final java.util.concurrent.Executor executor;
 
     /**
      * No-arg constructor kept for simple unit tests that instantiate the
@@ -46,9 +52,13 @@ public class TripSearchServiceImpl implements TripSearchService {
         this.tripOptionRepository = null;
         this.tripSearchMapper = null;
         this.tripOptionMapper = null;
+                this.mlClient = null;
+                this.flightSearchProvider = null;
+                this.lodgingSearchProvider = null;
+                                this.tripAssemblyService = null;
+                                this.executor = null;
     }
 
-    @Autowired
     public TripSearchServiceImpl(TripSearchRepository tripSearchRepository,
                                  TripOptionRepository tripOptionRepository,
                                  TripSearchMapper tripSearchMapper,
@@ -57,7 +67,33 @@ public class TripSearchServiceImpl implements TripSearchService {
         this.tripOptionRepository = tripOptionRepository;
         this.tripSearchMapper = tripSearchMapper;
         this.tripOptionMapper = tripOptionMapper;
+                this.mlClient = null;
+                this.flightSearchProvider = null;
+                this.lodgingSearchProvider = null;
+                this.tripAssemblyService = null;
+                this.executor = null;
     }
+
+        @Autowired
+        public TripSearchServiceImpl(TripSearchRepository tripSearchRepository,
+                                     TripOptionRepository tripOptionRepository,
+                                     TripSearchMapper tripSearchMapper,
+                                     TripOptionMapper tripOptionMapper,
+                                     com.adriangarciao.traveloptimizer.client.MlClient mlClient,
+                                     com.adriangarciao.traveloptimizer.provider.FlightSearchProvider flightSearchProvider,
+                                     com.adriangarciao.traveloptimizer.provider.LodgingSearchProvider lodgingSearchProvider,
+                                     com.adriangarciao.traveloptimizer.service.TripAssemblyService tripAssemblyService,
+                                     java.util.concurrent.Executor executor) {
+                this.tripSearchRepository = tripSearchRepository;
+                this.tripOptionRepository = tripOptionRepository;
+                this.tripSearchMapper = tripSearchMapper;
+                this.tripOptionMapper = tripOptionMapper;
+                this.mlClient = mlClient;
+                this.flightSearchProvider = flightSearchProvider;
+                this.lodgingSearchProvider = lodgingSearchProvider;
+                this.tripAssemblyService = tripAssemblyService;
+                this.executor = executor;
+        }
 
     @Override
         @org.springframework.cache.annotation.Cacheable(value = "tripSearchCache", keyGenerator = "tripSearchKeyGenerator", unless = "#result == null")
@@ -95,6 +131,24 @@ public class TripSearchServiceImpl implements TripSearchService {
                     .recommendedReturnDate(LocalDate.now().plusDays(18))
                     .confidence(0.65)
                     .build();
+            // If an ML client is available, call it for updated predictions; otherwise return deterministic defaults
+            if (mlClient != null) {
+                try {
+                    MlBestDateWindowDTO mlWindow = mlClient.getBestDateWindow(request);
+                    MlRecommendationDTO rec = mlClient.getOptionRecommendation(option, request);
+                    option.setMlRecommendation(rec);
+                    return TripSearchResponseDTO.builder()
+                            .searchId(UUID.randomUUID())
+                            .origin(request.getOrigin())
+                            .destination(request.getDestination())
+                            .currency("USD")
+                            .options(Collections.singletonList(option))
+                            .mlBestDateWindow(mlWindow)
+                            .build();
+                } catch (Throwable t) {
+                    log.warn("ML call failed in dummy branch: {}", t.toString());
+                }
+            }
 
             return TripSearchResponseDTO.builder()
                     .searchId(UUID.randomUUID())
@@ -106,42 +160,131 @@ public class TripSearchServiceImpl implements TripSearchService {
                     .build();
         }
 
-        // Persist real entities and return DTO mapped from saved entities
-        log.info("Persisting TripSearch for {} -> {}", request.getOrigin(), request.getDestination());
-        TripSearch toSave = tripSearchMapper.toEntity(request);
+                // Persist real entities and return DTO mapped from saved entities
+                log.info("Persisting TripSearch for {} -> {}", request.getOrigin(), request.getDestination());
+                TripSearch toSave = tripSearchMapper.toEntity(request);
 
-        // Build dummy nested entities
-        com.adriangarciao.traveloptimizer.model.FlightOption flight = com.adriangarciao.traveloptimizer.model.FlightOption.builder()
-                .airline("ExampleAir")
-                .flightNumber("EA123")
-                .stops(0)
-                .duration(Duration.ofHours(5))
-                .segments(List.of(request.getOrigin() + "->" + request.getDestination()))
-                .price(java.math.BigDecimal.valueOf(499.99))
-                .build();
+                // Run flight and lodging searches in parallel with timeouts and graceful fallbacks
+                java.util.concurrent.CompletableFuture<List<com.adriangarciao.traveloptimizer.provider.FlightOffer>> flightsFuture = null;
+                java.util.concurrent.CompletableFuture<List<com.adriangarciao.traveloptimizer.provider.LodgingOffer>> lodgingsFuture = null;
 
-        com.adriangarciao.traveloptimizer.model.LodgingOption lodging = com.adriangarciao.traveloptimizer.model.LodgingOption.builder()
-                .hotelName("Demo Hotel")
-                .lodgingType("Hotel")
-                .rating(4.2)
-                .pricePerNight(BigDecimal.valueOf(120))
-                .nights(3)
-                .build();
+                if (flightSearchProvider != null) {
+                        flightsFuture = java.util.concurrent.CompletableFuture.supplyAsync(() -> flightSearchProvider.searchFlights(request), executor)
+                                        .orTimeout(3, java.util.concurrent.TimeUnit.SECONDS)
+                                        .exceptionally(t -> {
+                                                log.warn("Flight provider failed/timeout: {}", t.toString());
+                                                return List.of();
+                                        });
+                }
 
-        TripOption opt = TripOption.builder()
-                .totalPrice(BigDecimal.valueOf(499.99))
-                .currency("USD")
-                .valueScore(0.82)
-                .flightOption(flight)
-                .lodgingOption(lodging)
-                .tripSearch(toSave)
-                .build();
+                if (lodgingSearchProvider != null) {
+                        lodgingsFuture = java.util.concurrent.CompletableFuture.supplyAsync(() -> lodgingSearchProvider.searchLodging(request), executor)
+                                        .orTimeout(3, java.util.concurrent.TimeUnit.SECONDS)
+                                        .exceptionally(t -> {
+                                                log.warn("Lodging provider failed/timeout: {}", t.toString());
+                                                return List.of();
+                                        });
+                }
 
-        toSave.setOptions(Collections.singletonList(opt));
+                List<com.adriangarciao.traveloptimizer.provider.FlightOffer> flights = List.of();
+                List<com.adriangarciao.traveloptimizer.provider.LodgingOffer> lodgings = List.of();
+                try {
+                        if (flightsFuture != null) flights = flightsFuture.get();
+                } catch (Throwable t) {
+                        log.warn("Failed to get flights: {}", t.toString());
+                        flights = List.of();
+                }
+                try {
+                        if (lodgingsFuture != null) lodgings = lodgingsFuture.get();
+                } catch (Throwable t) {
+                        log.warn("Failed to get lodgings: {}", t.toString());
+                        lodgings = List.of();
+                }
 
-        TripSearch saved = tripSearchRepository.save(toSave);
+                List<TripOption> assembled = Collections.emptyList();
+                if (tripAssemblyService != null) {
+                        try {
+                                assembled = tripAssemblyService.assembleTripOptions(request, flights, lodgings);
+                        } catch (Throwable t) {
+                                log.warn("Trip assembly failed: {}", t.toString());
+                                assembled = Collections.emptyList();
+                        }
+                }
 
-        // Map saved entity to response DTO (IDs populated by DB/Hibernate)
-        return tripSearchMapper.toDto(saved);
+                // Attach parent TripSearch to each option so JPA will persist relationship
+                for (TripOption o : assembled) {
+                        o.setTripSearch(toSave);
+                }
+
+                toSave.setOptions(assembled);
+
+                TripSearch saved = tripSearchRepository.save(toSave);
+
+                // Map saved entity to response DTO (IDs populated by DB/Hibernate)
+                TripSearchResponseDTO dto = tripSearchMapper.toDto(saved);
+
+                // Enrich with ML predictions if available; run with limited parallelism and simple retry
+                if (mlClient != null) {
+                        java.util.concurrent.CompletableFuture<MlBestDateWindowDTO> mlWindowFuture = java.util.concurrent.CompletableFuture.supplyAsync(() -> {
+                                // simple retry once
+                                try {
+                                        return mlClient.getBestDateWindow(request);
+                                } catch (Throwable t) {
+                                        log.warn("ML best-date-window first attempt failed: {}", t.toString());
+                                        try { Thread.sleep(150); } catch (InterruptedException ignored) {}
+                                        try { return mlClient.getBestDateWindow(request); } catch (Throwable t2) {
+                                                log.warn("ML best-date-window retry failed: {}", t2.toString());
+                                                return MlBestDateWindowDTO.builder().confidence(0.0).build();
+                                        }
+                                }
+                        }, executor).orTimeout(2, java.util.concurrent.TimeUnit.SECONDS).exceptionally(t -> {
+                                log.warn("ML best-date-window timeout/failure: {}", t.toString());
+                                return MlBestDateWindowDTO.builder().confidence(0.0).build();
+                        });
+
+                        try {
+                                dto.setMlBestDateWindow(mlWindowFuture.get());
+                        } catch (Throwable t) {
+                                log.warn("Failed to get ML best-date-window: {}", t.toString());
+                        }
+
+                        if (dto.getOptions() != null && !dto.getOptions().isEmpty()) {
+                                // cap number of parallel ML option recommendation calls
+                                int cap = Math.min(dto.getOptions().size(), 5);
+                                java.util.List<java.util.concurrent.CompletableFuture<Void>> recFutures = new java.util.ArrayList<>();
+                                for (int i = 0; i < cap; i++) {
+                                        TripOptionSummaryDTO optionDto = dto.getOptions().get(i);
+                                        java.util.concurrent.CompletableFuture<Void> f = java.util.concurrent.CompletableFuture.runAsync(() -> {
+                                                // simple retry
+                                                try {
+                                                        MlRecommendationDTO rec = mlClient.getOptionRecommendation(optionDto, request);
+                                                        optionDto.setMlRecommendation(rec);
+                                                } catch (Throwable t) {
+                                                        log.warn("ML recommendation first attempt failed for option {}: {}", optionDto.getTripOptionId(), t.toString());
+                                                        try { Thread.sleep(150); } catch (InterruptedException ignored) {}
+                                                        try {
+                                                                MlRecommendationDTO rec = mlClient.getOptionRecommendation(optionDto, request);
+                                                                optionDto.setMlRecommendation(rec);
+                                                        } catch (Throwable t2) {
+                                                                log.warn("ML recommendation retry failed for option {}: {}", optionDto.getTripOptionId(), t2.toString());
+                                                                optionDto.setMlRecommendation(MlRecommendationDTO.builder().isGoodDeal(false).priceTrend("unknown").note("ML unavailable").build());
+                                                        }
+                                                }
+                                        }, executor).orTimeout(2, java.util.concurrent.TimeUnit.SECONDS).exceptionally(t -> {
+                                                log.warn("ML recommendation timeout for option {}: {}", optionDto.getTripOptionId(), t.toString());
+                                                optionDto.setMlRecommendation(MlRecommendationDTO.builder().isGoodDeal(false).priceTrend("unknown").note("ML timeout").build());
+                                                return null;
+                                        });
+                                        recFutures.add(f);
+                                }
+                                try {
+                                        java.util.concurrent.CompletableFuture.allOf(recFutures.toArray(new java.util.concurrent.CompletableFuture[0])).get();
+                                } catch (Throwable t) {
+                                        log.warn("Error waiting for ML recommendation futures: {}", t.toString());
+                                }
+                        }
+                }
+
+                return dto;
     }
 }
