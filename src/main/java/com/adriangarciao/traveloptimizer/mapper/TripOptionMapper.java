@@ -6,28 +6,120 @@ import com.adriangarciao.traveloptimizer.dto.TripOptionSummaryDTO;
 import com.adriangarciao.traveloptimizer.model.FlightOption;
 import com.adriangarciao.traveloptimizer.model.LodgingOption;
 import com.adriangarciao.traveloptimizer.model.TripOption;
-import org.mapstruct.Mapper;
-import org.mapstruct.Mapping;
-import org.mapstruct.factory.Mappers;
+import org.springframework.stereotype.Component;
 
-/**
- * MapStruct mapper for converting trip option entities to DTOs and back.
- */
-@Mapper(componentModel = "spring")
-public interface TripOptionMapper {
-    TripOptionMapper INSTANCE = Mappers.getMapper(TripOptionMapper.class);
+@Component
+public class TripOptionMapper {
 
-    @Mapping(target = "tripOptionId", source = "id")
-    TripOptionSummaryDTO toDto(TripOption entity);
+    public TripOptionSummaryDTO toDto(TripOption entity) {
+        if (entity == null) return null;
+        TripOptionSummaryDTO dto = new TripOptionSummaryDTO();
+        dto.setTripOptionId(entity.getId());
+        dto.setTotalPrice(entity.getTotalPrice());
+        dto.setCurrency(entity.getCurrency());
+        dto.setValueScore(entity.getValueScore());
 
-    // When mapping a DTO to an entity for new persistence, ignore the id
-    // to avoid passing a detached entity (pre-set id) to JPA's persist.
-    @Mapping(target = "id", ignore = true)
-    TripOption toEntity(TripOptionSummaryDTO dto);
+        // map flight option if present
+        if (entity.getFlightOption() != null) {
+            FlightOption fOpt = entity.getFlightOption();
+            FlightSummaryDTO f = new FlightSummaryDTO();
+            f.setAirline(fOpt.getAirline());
+            f.setFlightNumber(fOpt.getFlightNumber());
+            f.setStops(fOpt.getStops());
+            f.setDuration(fOpt.getDuration());
+            f.setSegments(fOpt.getSegments());
+            dto.setFlight(f);
+        }
 
-    FlightSummaryDTO flightToDto(FlightOption flight);
-    FlightOption flightToEntity(FlightSummaryDTO dto);
+        // map lodging option if present
+        if (entity.getLodgingOption() != null) {
+            LodgingOption lOpt = entity.getLodgingOption();
+            LodgingSummaryDTO l = new LodgingSummaryDTO();
+            l.setHotelName(lOpt.getHotelName());
+            l.setLodgingType(lOpt.getLodgingType());
+            l.setRating(lOpt.getRating());
+            l.setPricePerNight(lOpt.getPricePerNight());
+            l.setNights(lOpt.getNights());
+            dto.setLodging(l);
+        }
 
-    LodgingSummaryDTO lodgingToDto(LodgingOption lodging);
-    LodgingOption lodgingToEntity(LodgingSummaryDTO dto);
+        return dto;
+    }
+
+    public TripOption toEntity(TripOptionSummaryDTO dto) {
+        if (dto == null) return null;
+        TripOption entity = new TripOption();
+        // ignore id to allow JPA to generate
+        entity.setTotalPrice(dto.getTotalPrice());
+        entity.setCurrency(dto.getCurrency());
+        entity.setValueScore(dto.getValueScore());
+
+        if (dto.getFlight() != null) {
+            FlightSummaryDTO fd = dto.getFlight();
+            FlightOption f = new FlightOption();
+            f.setAirline(fd.getAirline());
+            f.setFlightNumber(fd.getFlightNumber());
+            f.setStops(fd.getStops());
+            f.setDuration(fd.getDuration());
+            f.setSegments(fd.getSegments());
+            entity.setFlightOption(f);
+        }
+
+        if (dto.getLodging() != null) {
+            LodgingSummaryDTO ld = dto.getLodging();
+            LodgingOption l = new LodgingOption();
+            l.setHotelName(ld.getHotelName());
+            l.setLodgingType(ld.getLodgingType());
+            l.setRating(ld.getRating());
+            l.setPricePerNight(ld.getPricePerNight());
+            l.setNights(ld.getNights());
+            entity.setLodgingOption(l);
+        }
+
+        return entity;
+    }
+
+    public FlightSummaryDTO flightToDto(FlightOption flight) {
+        if (flight == null) return null;
+        FlightSummaryDTO dto = new FlightSummaryDTO();
+        dto.setAirline(flight.getAirline());
+        dto.setFlightNumber(flight.getFlightNumber());
+        dto.setStops(flight.getStops());
+        dto.setDuration(flight.getDuration());
+        dto.setSegments(flight.getSegments());
+        return dto;
+    }
+
+    public FlightOption flightToEntity(FlightSummaryDTO dto) {
+        if (dto == null) return null;
+        FlightOption f = new FlightOption();
+        f.setAirline(dto.getAirline());
+        f.setFlightNumber(dto.getFlightNumber());
+        f.setStops(dto.getStops());
+        f.setDuration(dto.getDuration());
+        f.setSegments(dto.getSegments());
+        return f;
+    }
+
+    public LodgingSummaryDTO lodgingToDto(LodgingOption lodging) {
+        if (lodging == null) return null;
+        LodgingSummaryDTO dto = new LodgingSummaryDTO();
+        dto.setHotelName(lodging.getHotelName());
+        dto.setLodgingType(lodging.getLodgingType());
+        dto.setRating(lodging.getRating());
+        dto.setPricePerNight(lodging.getPricePerNight());
+        dto.setNights(lodging.getNights());
+        return dto;
+    }
+
+    public LodgingOption lodgingToEntity(LodgingSummaryDTO dto) {
+        if (dto == null) return null;
+        LodgingOption l = new LodgingOption();
+        l.setHotelName(dto.getHotelName());
+        l.setLodgingType(dto.getLodgingType());
+        l.setRating(dto.getRating());
+        l.setPricePerNight(dto.getPricePerNight());
+        l.setNights(dto.getNights());
+        return l;
+    }
 }

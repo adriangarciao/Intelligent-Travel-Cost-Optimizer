@@ -36,3 +36,16 @@ Notes
 
 - Do not commit secrets. `.env` is ignored and `.env.example` provides placeholders.
 - Flyway migrations are located under `src/main/resources/db/migration` and will run automatically at startup when a DB is configured.
+
+**Testing & Integration Setup**
+
+- **Unit tests:** small, fast JVM tests (no Docker). Run with `mvn test`.
+- **Integration tests:** use Testcontainers to provide PostgreSQL and Redis and exercise Spring contexts.
+- **ML stubbing:** integration tests use the `WireMockMlServerExtension` which starts a dynamic-port WireMock server and registers ML stubs for:
+  - `POST /predict/best-date-window` → 200 JSON
+  - `POST /predict/option-recommendation` → 200 JSON
+- **CI:** runs integration tests on Docker-enabled runners (Testcontainers + WireMock). Ensure Docker is available in CI.
+- **Local runs:**
+  - Quick: `mvn test` (integration tests start Docker containers via Testcontainers)
+  - If you need unit-only runs: run specific tests with `-Dtest=...` or use test categories/naming conventions.
+- **ML failure coverage:** negative ML scenarios are covered by `TripSearchMlFailureTest` (it intentionally points at an unused ML port to verify fallback behavior).

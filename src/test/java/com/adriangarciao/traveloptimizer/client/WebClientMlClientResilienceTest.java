@@ -2,11 +2,13 @@ package com.adriangarciao.traveloptimizer.client;
 
 import com.adriangarciao.traveloptimizer.dto.MlBestDateWindowDTO;
 import com.adriangarciao.traveloptimizer.dto.TripSearchRequestDTO;
-import okhttp3.mockwebserver.MockResponse;
-import okhttp3.mockwebserver.MockWebServer;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import com.adriangarciao.traveloptimizer.test.support.WireMockMlServerExtension;
+import static com.github.tomakehurst.wiremock.client.WireMock.post;
+import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
+import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
+import com.github.tomakehurst.wiremock.stubbing.Scenario;
+import com.github.tomakehurst.wiremock.stubbing.Scenario;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -19,39 +21,33 @@ import java.time.LocalDate;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-@ExtendWith(SpringExtension.class)
+@ExtendWith({com.adriangarciao.traveloptimizer.test.ThreadLeakDetectorExtension.class})
 @SpringBootTest(classes = com.adriangarciao.traveloptimizer.client.WebClientMlClient.class)
 public class WebClientMlClientResilienceTest {
+    static WireMockMlServerExtension WMEXT = new WireMockMlServerExtension();
 
-    static MockWebServer server;
+    @org.junit.jupiter.api.extension.RegisterExtension
+    static WireMockMlServerExtension registeredWireMock = WMEXT;
 
-    @BeforeAll
-    static void start() throws IOException {
-        server = new MockWebServer();
-        server.start();
-    }
-
-    @AfterAll
-    static void stop() throws IOException {
-        server.shutdown();
-    }
-
-    @DynamicPropertySource
+    @org.springframework.test.context.DynamicPropertySource
     static void props(DynamicPropertyRegistry registry) {
-        registry.add("ml.service.base-url", () -> server.url("").toString());
+        registry.add("ml.service.base-url", () -> WMEXT.getServer().baseUrl());
     }
 
     @Autowired
     private WebClientMlClient client;
 
+    // WireMock lifecycle handled by WireMockMlServerExtension
+
     @Test
     void retrySucceedsOnSecondAttempt_forBestDateWindow() throws Exception {
         // First response 500, second response 200 with JSON body
-        server.enqueue(new MockResponse().setResponseCode(500));
-        server.enqueue(new MockResponse()
-            .setResponseCode(200)
-            .addHeader("Content-Type", "application/json")
-            .setBody("{\"recommendedDepartureDate\":\"2025-12-30\",\"recommendedReturnDate\":\"2026-01-03\",\"confidence\":0.42}"));
+        WMEXT.getServer().stubFor(post(urlPathEqualTo("/predict/best-date-window")).inScenario("retry").whenScenarioStateIs(Scenario.STARTED)
+            .willReturn(aResponse().withStatus(500))
+            .willSetStateTo("second"));
+        WMEXT.getServer().stubFor(post(urlPathEqualTo("/predict/best-date-window")).inScenario("retry").whenScenarioStateIs("second")
+            .willReturn(aResponse().withStatus(200).withHeader("Content-Type", "application/json")
+                .withBody("{\"recommendedDepartureDate\":\"2025-12-30\",\"recommendedReturnDate\":\"2026-01-03\",\"confidence\":0.42}")));
 
         TripSearchRequestDTO req = TripSearchRequestDTO.builder()
                 .origin("SFO")
