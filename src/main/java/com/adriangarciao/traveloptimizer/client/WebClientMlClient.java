@@ -7,11 +7,14 @@ import com.adriangarciao.traveloptimizer.dto.TripSearchRequestDTO;
 import lombok.extern.slf4j.Slf4j;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig;
+import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import io.github.resilience4j.retry.Retry;
 import io.github.resilience4j.retry.RetryConfig;
+import io.github.resilience4j.retry.RetryRegistry;
 import java.time.temporal.ChronoUnit;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -27,28 +30,27 @@ public class WebClientMlClient implements MlClient {
     private final String baseUrl;
 
     @Autowired
-    public WebClientMlClient(@Value("${ml.service.base-url:http://localhost:8000}") String baseUrl) {
+    public WebClientMlClient(@Value("${ml.service.base-url:http://localhost:8000}") String baseUrl,
+                             ObjectProvider<RetryRegistry> retryRegistryProvider,
+                             ObjectProvider<CircuitBreakerRegistry> circuitBreakerRegistryProvider) {
         this.baseUrl = baseUrl;
         this.webClient = WebClient.builder().baseUrl(baseUrl).build();
-        // programmatic resilience configuration
-        RetryConfig retryConfig = RetryConfig.custom()
-            .maxAttempts(2)
-            .waitDuration(java.time.Duration.ofMillis(200))
-            .retryExceptions(org.springframework.web.reactive.function.client.WebClientRequestException.class,
-                org.springframework.web.reactive.function.client.WebClientResponseException.class)
-            .build();
-        this.retry = Retry.of("mlService", retryConfig);
-
-        CircuitBreakerConfig cbConfig = CircuitBreakerConfig.custom()
-            .failureRateThreshold(50)
-            .minimumNumberOfCalls(4)
-            .slidingWindowSize(10)
-            .waitDurationInOpenState(java.time.Duration.ofSeconds(10))
-            .build();
-        this.circuitBreaker = CircuitBreaker.of("mlService", cbConfig);
+        // obtain configured resilience instances from registries (externalized via properties)
+        RetryRegistry rr = retryRegistryProvider.getIfAvailable(RetryRegistry::ofDefaults);
+        CircuitBreakerRegistry cbr = circuitBreakerRegistryProvider.getIfAvailable(CircuitBreakerRegistry::ofDefaults);
+        this.retry = rr.retry("mlService");
+        this.circuitBreaker = cbr.circuitBreaker("mlService");
     }
 
-    // Secondary constructor for tests to inject a mockable WebClient
+    // Secondary constructor for tests to inject a mockable WebClient and explicit resilience instances
+    public WebClientMlClient(WebClient webClient, String baseUrl, Retry retry, CircuitBreaker circuitBreaker) {
+        this.baseUrl = baseUrl;
+        this.webClient = webClient;
+        this.retry = retry;
+        this.circuitBreaker = circuitBreaker;
+    }
+
+    // Backwards-compatible constructor used by some tests (creates default resilience instances)
     public WebClientMlClient(WebClient webClient, String baseUrl) {
         this.baseUrl = baseUrl;
         this.webClient = webClient;

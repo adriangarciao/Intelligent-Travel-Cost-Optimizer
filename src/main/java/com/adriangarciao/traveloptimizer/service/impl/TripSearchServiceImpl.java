@@ -19,6 +19,11 @@ import java.time.LocalDate;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 
 /**
  * Simple implementation that returns dummy data for early development.
@@ -95,9 +100,9 @@ public class TripSearchServiceImpl implements TripSearchService {
                 this.executor = executor;
         }
 
-    @Override
-        @org.springframework.cache.annotation.Cacheable(value = "tripSearchCache", keyGenerator = "tripSearchKeyGenerator", unless = "#result == null")
-    public TripSearchResponseDTO searchTrips(TripSearchRequestDTO request) {
+        @Override
+                @org.springframework.cache.annotation.Cacheable(value = "tripSearchCache", keyGenerator = "tripSearchKeyGenerator", unless = "#result == null")
+        public TripSearchResponseDTO searchTrips(TripSearchRequestDTO request, Integer limit, String sortBy, String sortDir) {
         // If repositories/mappers are not available (unit tests), return a lightweight dummy response
         if (tripSearchRepository == null || tripSearchMapper == null) {
             TripOptionSummaryDTO option = TripOptionSummaryDTO.builder()
@@ -223,6 +228,14 @@ public class TripSearchServiceImpl implements TripSearchService {
                 // Map saved entity to response DTO (IDs populated by DB/Hibernate)
                 TripSearchResponseDTO dto = tripSearchMapper.toDto(saved);
 
+                // Apply server-side sorting/limiting by querying persisted TripOptions
+                int safeLimit = (limit == null) ? 10 : Math.max(1, Math.min(limit, 50));
+                String safeSortBy = (sortBy == null || sortBy.isBlank()) ? "valueScore" : sortBy;
+                Sort.Direction dir = ("asc".equalsIgnoreCase(sortDir)) ? Sort.Direction.ASC : Sort.Direction.DESC;
+                Page<TripOption> optionsPage = tripOptionRepository.findByTripSearchId(saved.getId(), PageRequest.of(0, safeLimit, Sort.by(dir, safeSortBy)));
+                List<TripOptionSummaryDTO> limited = optionsPage.getContent().stream().map(tripOptionMapper::toDto).collect(Collectors.toList());
+                dto.setOptions(limited);
+
                 // Enrich with ML predictions if available; run with limited parallelism and simple retry
                 if (mlClient != null) {
                         java.util.concurrent.CompletableFuture<MlBestDateWindowDTO> mlWindowFuture = java.util.concurrent.CompletableFuture.supplyAsync(() -> {
@@ -287,4 +300,21 @@ public class TripSearchServiceImpl implements TripSearchService {
 
                 return dto;
     }
+
+        @Override
+        public com.adriangarciao.traveloptimizer.dto.TripOptionsPageDTO getOptions(java.util.UUID searchId, int page, int size, String sortBy, String sortDir) {
+                int safeSize = Math.max(1, Math.min(size, 100));
+                int safePage = Math.max(0, page);
+                String safeSortBy = (sortBy == null || sortBy.isBlank()) ? "valueScore" : sortBy;
+                Sort.Direction dir = ("asc".equalsIgnoreCase(sortDir)) ? Sort.Direction.ASC : Sort.Direction.DESC;
+                Page<TripOption> p = tripOptionRepository.findByTripSearchId(searchId, PageRequest.of(safePage, safeSize, Sort.by(dir, safeSortBy)));
+                List<com.adriangarciao.traveloptimizer.dto.TripOptionSummaryDTO> content = p.getContent().stream().map(tripOptionMapper::toDto).collect(Collectors.toList());
+                return com.adriangarciao.traveloptimizer.dto.TripOptionsPageDTO.builder()
+                                .searchId(searchId)
+                                .page(safePage)
+                                .size(safeSize)
+                                .totalOptions(p.getTotalElements())
+                                .options(content)
+                                .build();
+        }
 }

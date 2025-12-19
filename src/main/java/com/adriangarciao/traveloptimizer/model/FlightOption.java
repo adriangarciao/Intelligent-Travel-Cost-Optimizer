@@ -20,7 +20,8 @@ import java.math.BigDecimal;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class FlightOption {
+public class FlightOption implements java.io.Serializable {
+    private static final long serialVersionUID = 1L;
     @Id
     @GeneratedValue(generator = "UUID")
     @org.hibernate.annotations.GenericGenerator(name = "UUID", strategy = "org.hibernate.id.UUIDGenerator")

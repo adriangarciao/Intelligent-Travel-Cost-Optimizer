@@ -1,0 +1,19 @@
+resilience4j:
+  retry:
+    instances:
+      mlService:
+        max-attempts: 2
+        wait-duration: 200ms
+        retry-exceptions:
+          - org.springframework.web.reactive.function.client.WebClientRequestException
+          - org.springframework.web.reactive.function.client.WebClientResponseException
+  circuitbreaker:
+    instances:
+      mlService:
+        failure-rate-threshold: 50
+        minimum-number-of-calls: 4
+        sliding-window-size: 10
+        wait-duration-in-open-state: 10s
+ml:
+  service:
+    base-url: http://localhost:8000

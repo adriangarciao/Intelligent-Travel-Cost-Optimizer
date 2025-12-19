@@ -44,10 +44,10 @@ class TripSearchControllerTest {
                 .build();
 
         TripSearchService service = Mockito.mock(TripSearchService.class);
-        Mockito.when(service.searchTrips(Mockito.any())).thenReturn(resp);
+        Mockito.when(service.searchTrips(Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any())).thenReturn(resp);
 
         TripSearchController controller = new TripSearchController(service);
-        var result = controller.searchTrips(req);
+        var result = controller.searchTrips(req, null, null, null);
 
         assertThat(result.getStatusCode().is2xxSuccessful()).isTrue();
         assertThat(result.getBody()).isNotNull();

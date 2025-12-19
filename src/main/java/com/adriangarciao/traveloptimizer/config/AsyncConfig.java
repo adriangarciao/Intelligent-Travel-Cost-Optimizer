@@ -16,6 +16,9 @@ public class AsyncConfig {
         exec.setMaxPoolSize(20);
         exec.setQueueCapacity(50);
         exec.setThreadNamePrefix("trip-search-");
+        exec.setDaemon(true);
+        exec.setWaitForTasksToCompleteOnShutdown(true);
+        exec.setAwaitTerminationSeconds(10);
         exec.initialize();
         return exec;
     }
