@@ -26,9 +26,12 @@ import org.springframework.web.bind.annotation.RestController;
 public class TripSearchController {
 
     private final TripSearchService tripSearchService;
+    private final com.adriangarciao.traveloptimizer.repository.TripSearchRepository tripSearchRepository;
 
-    public TripSearchController(TripSearchService tripSearchService) {
+    public TripSearchController(TripSearchService tripSearchService,
+                                com.adriangarciao.traveloptimizer.repository.TripSearchRepository tripSearchRepository) {
         this.tripSearchService = tripSearchService;
+        this.tripSearchRepository = tripSearchRepository;
     }
 
     @PostMapping("/search")
@@ -50,5 +53,22 @@ public class TripSearchController {
             @RequestParam(value = "sortDir", required = false) String sortDir) {
         TripOptionsPageDTO pageDto = tripSearchService.getOptions(searchId, page, size, sortBy, sortDir);
         return ResponseEntity.ok(pageDto);
+    }
+
+    @GetMapping("/recent")
+    public ResponseEntity<java.util.List<java.util.Map<String, Object>>> recent(@RequestParam(value = "limit", defaultValue = "10") int limit) {
+        int safeLimit = Math.max(1, Math.min(limit, 50));
+        var page = tripSearchRepository.findAll(org.springframework.data.domain.PageRequest.of(0, safeLimit, org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "createdAt")));
+        var result = page.getContent().stream().map(ts -> {
+            java.util.Map<String, Object> m = new java.util.HashMap<>();
+            m.put("searchId", ts.getId());
+            m.put("origin", ts.getOrigin());
+            m.put("destination", ts.getDestination());
+            m.put("earliestDepartureDate", ts.getEarliestDepartureDate());
+            m.put("latestDepartureDate", ts.getLatestDepartureDate());
+            m.put("createdAt", ts.getCreatedAt());
+            return m;
+        }).toList();
+        return ResponseEntity.ok(result);
     }
 }

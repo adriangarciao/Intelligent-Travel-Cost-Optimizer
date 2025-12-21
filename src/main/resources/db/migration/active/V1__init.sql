@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS flight_option (
     airline VARCHAR(128),
     flight_number VARCHAR(64),
     stops INTEGER,
-    duration BIGINT,
+    duration NUMERIC(21,0),
     price NUMERIC(19,2)
 );
 

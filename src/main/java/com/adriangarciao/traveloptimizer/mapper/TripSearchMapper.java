@@ -33,9 +33,16 @@ public class TripSearchMapper {
         b.searchId(entity.getId())
          .origin(entity.getOrigin())
          .destination(entity.getDestination())
-         .options(entity.getOptions() == null ? null : entity.getOptions().stream()
+         .options(entity.getOptions() == null ? java.util.Collections.emptyList() : entity.getOptions().stream()
                  .map(this::toOptionSummaryDto)
                  .collect(Collectors.toList()));
+
+        // infer currency from first option if present, otherwise default to USD
+        String currency = "USD";
+        if (entity.getOptions() != null && !entity.getOptions().isEmpty() && entity.getOptions().get(0).getCurrency() != null) {
+            currency = entity.getOptions().get(0).getCurrency();
+        }
+        b.currency(currency);
         return b.build();
     }
 
