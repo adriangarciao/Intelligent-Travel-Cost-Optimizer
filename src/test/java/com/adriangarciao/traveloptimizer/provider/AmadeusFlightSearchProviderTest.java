@@ -1,4 +1,4 @@
-package com.adriangarciao.traveloptimizer.provider.test;
+package com.adriangarciao.traveloptimizer.provider;
 
 import com.adriangarciao.traveloptimizer.client.AmadeusAuthClient;
 import com.adriangarciao.traveloptimizer.dto.TripSearchRequestDTO;
