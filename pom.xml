@@ -193,7 +193,6 @@
 					<source>${java.version}</source>
 					<target>${java.version}</target>
 					<fork>true</fork>
-					<executable>C:\Program Files\Eclipse Adoptium\jdk-21.0.3.9-hotspot\bin\javac.exe</executable>
 					<annotationProcessorPaths>
 						<path>
 							<groupId>org.projectlombok</groupId>
