@@ -12,7 +12,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Service
-@ConditionalOnProperty(name = "travel.providers.mode", havingValue = "mock", matchIfMissing = true)
+@ConditionalOnProperty(name = "travel.providers.flights", havingValue = "mock", matchIfMissing = true)
 public class MockFlightSearchProvider implements FlightSearchProvider {
 
     @Override

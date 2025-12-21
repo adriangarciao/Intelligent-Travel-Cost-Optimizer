@@ -6,6 +6,8 @@ import com.adriangarciao.traveloptimizer.provider.FlightOffer;
 import com.adriangarciao.traveloptimizer.provider.FlightSearchProvider;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.cache.annotation.Cacheable;
@@ -23,8 +25,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Service
-@ConditionalOnProperty(name = "amadeus.enabled", havingValue = "true")
+@ConditionalOnProperty(name = "travel.providers.flights", havingValue = "amadeus")
 public class AmadeusFlightSearchProvider implements FlightSearchProvider {
+
+    private static final Logger log = LoggerFactory.getLogger(AmadeusFlightSearchProvider.class);
 
     private final WebClient webClient;
     private final AmadeusAuthClient authClient;
@@ -44,7 +48,7 @@ public class AmadeusFlightSearchProvider implements FlightSearchProvider {
     @Cacheable(value = "amadeusFlights", key = "#request.origin + '|' + #request.destination + '|' + (#request.earliestDepartureDate != null ? #request.earliestDepartureDate.toString() : '') + '|' + (#request.earliestReturnDate != null ? #request.earliestReturnDate.toString() : '') + '|' + #request.numTravelers + '|' + (#request.maxBudget != null ? #request.maxBudget.toString() : '') + '|' + (#request.preferences != null && #request.preferences.getNonStopOnly() != null ? #request.preferences.getNonStopOnly().toString() : '')")
     public List<FlightOffer> searchFlights(TripSearchRequestDTO request) {
         try {
-            String token = authClient.getToken();
+            String token = authClient.getAccessToken();
             WebClient.RequestHeadersSpec<?> reqSpec = webClient.get().uri(uriBuilder -> {
                 uriBuilder.path("/v2/shopping/flight-offers");
                 uriBuilder.queryParam("originLocationCode", request.getOrigin());
@@ -63,18 +67,18 @@ public class AmadeusFlightSearchProvider implements FlightSearchProvider {
                 return uriBuilder.build();
             });
 
-                Mono<String> mono = reqSpec.header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+            Mono<String> mono = reqSpec.header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
                     .accept(MediaType.APPLICATION_JSON)
                     .retrieve()
                     .bodyToMono(String.class)
                     .timeout(Duration.ofMillis(3000));
 
-                String body = mono.block();
-                JsonNode root = body != null ? mapper.readTree(body) : null;
+            String body = mono.block();
+            JsonNode root = body != null ? mapper.readTree(body) : null;
             return parseOffers(root);
         } catch (Exception e) {
             // On any error (including 5xx/429), fallback to empty list and let caller handle
-            org.slf4j.LoggerFactory.getLogger(AmadeusFlightSearchProvider.class).warn("Amadeus flight search failed: {}", e.toString());
+            log.warn("Amadeus flight search failed: {}", e.toString());
             return new ArrayList<>();
         }
     }

@@ -1,74 +1,84 @@
 package com.adriangarciao.traveloptimizer.client;
 
-import lombok.Data;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.stereotype.Component;
+import org.springframework.http.MediaType;
+import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.client.WebClient;
-import reactor.core.publisher.Mono;
 
-import java.time.Duration;
 import java.time.Instant;
+import java.time.Duration;
 import java.util.Map;
 
-@Slf4j
-@Component
-@ConditionalOnProperty(name = "amadeus.enabled", havingValue = "true")
+/**
+ * Lightweight Amadeus token client with an in-memory cached access token.
+ * Supports both manual construction (used in unit tests) and Spring wiring.
+ */
 public class AmadeusAuthClient {
 
     private final WebClient webClient;
     private final String baseUrl;
-    private final String apiKey;
-    private final String apiSecret;
-    private final Duration timeout;
+    private final String clientId;
+    private final String clientSecret;
+    private final long timeoutMs;
 
-    private volatile String token;
-    private volatile Instant tokenExpiresAt = Instant.EPOCH;
+    // cached token state
+    private volatile String accessToken;
+    private volatile Instant expiresAt = Instant.EPOCH;
 
-    public AmadeusAuthClient(@Value("${amadeus.base-url:https://test.api.amadeus.com}") String baseUrl,
-                             @Value("${amadeus.api-key:}") String apiKey,
-                             @Value("${amadeus.api-secret:}") String apiSecret,
-                             @Value("${amadeus.timeout-ms:3000}") long timeoutMs) {
-        this.baseUrl = baseUrl;
-        this.apiKey = apiKey;
-        this.apiSecret = apiSecret;
-        this.timeout = Duration.ofMillis(timeoutMs);
-        this.webClient = WebClient.builder().baseUrl(baseUrl).build();
+    /**
+     * Manual constructor used by unit tests.
+     */
+    public AmadeusAuthClient(String baseUrl, String clientId, String clientSecret, long timeoutMs) {
+        this.baseUrl = baseUrl != null && baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length()-1) : baseUrl;
+        this.clientId = clientId;
+        this.clientSecret = clientSecret;
+        this.timeoutMs = timeoutMs;
+        this.webClient = WebClient.builder().baseUrl(this.baseUrl).build();
     }
 
-    public synchronized String getToken() {
-        if (token != null && Instant.now().isBefore(tokenExpiresAt.minusSeconds(60))) {
-            return token;
+    /**
+     * General constructor for DI usage.
+     */
+    public AmadeusAuthClient(WebClient webClient, String baseUrl, String clientId, String clientSecret, long timeoutMs) {
+        this.webClient = webClient != null ? webClient : WebClient.builder().baseUrl(baseUrl).build();
+        this.baseUrl = baseUrl;
+        this.clientId = clientId;
+        this.clientSecret = clientSecret;
+        this.timeoutMs = timeoutMs;
+    }
+
+    /**
+     * Obtain a valid access token, refreshing if expired or near expiry.
+     */
+    public synchronized String getAccessToken() {
+        Instant now = Instant.now();
+        if (accessToken != null && expiresAt.isAfter(now.plusSeconds(30))) {
+            return accessToken;
         }
 
-        // request new token
+        // perform token request
         try {
-            Mono<Map> mono = webClient.post()
+            Map resp = webClient.post()
                     .uri("/v1/security/oauth2/token")
-                    .header("Content-Type", "application/x-www-form-urlencoded")
-                    .bodyValue("grant_type=client_credentials&client_id=" + encode(apiKey) + "&client_secret=" + encode(apiSecret))
+                    .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                    .body(BodyInserters.fromFormData("grant_type", "client_credentials")
+                            .with("client_id", clientId)
+                            .with("client_secret", clientSecret))
                     .retrieve()
                     .bodyToMono(Map.class)
-                    .timeout(timeout);
+                    .block(Duration.ofMillis(timeoutMs));
 
-            Map resp = mono.block();
-            if (resp == null || !resp.containsKey("access_token")) {
-                throw new IllegalStateException("invalid token response");
-            }
-            String at = (String) resp.get("access_token");
-            Number expires = (Number) resp.getOrDefault("expires_in", 1799);
-            this.token = at;
-            this.tokenExpiresAt = Instant.now().plusSeconds(expires.longValue());
-            return token;
-        } catch (Throwable t) {
-            log.warn("Failed to obtain Amadeus token: {}", t.toString());
-            throw new RuntimeException("Auth failure");
+            if (resp == null) throw new IllegalStateException("Empty token response");
+
+            Object at = resp.get("access_token");
+            Object expiresIn = resp.get("expires_in");
+            if (at == null) throw new IllegalStateException("No access_token in response");
+
+            accessToken = at.toString();
+            long secs = expiresIn != null ? Long.parseLong(expiresIn.toString()) : 1800L;
+            expiresAt = Instant.now().plusSeconds(secs);
+            return accessToken;
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to obtain Amadeus access token", e);
         }
-    }
-
-    private static String encode(String s) {
-        if (s == null) return "";
-        try { return java.net.URLEncoder.encode(s, java.nio.charset.StandardCharsets.UTF_8); } catch (Exception e) { return s; }
     }
 }
