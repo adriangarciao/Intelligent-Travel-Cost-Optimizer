@@ -1,3 +1,25 @@
+# Local dev: `dev-no-security` profile
+
+This repository includes a temporary development-only profile `dev-no-security` that disables authentication for local verification.
+
+How to run (local only):
+
+1. Build the jar:
+
+```powershell
+mvn -DskipTests clean package
+```
+
+2. Run with the dev profile (H2 in-memory datasource will be used):
+
+```powershell
+java -jar target/*-SNAPSHOT.jar --spring.profiles.active=dev-no-security
+```
+
+Notes:
+- This profile is intended only for local development and testing. Do NOT use it in staging/production.
+- It configures an H2 in-memory datasource and excludes security auto-configuration to allow unauthenticated requests to API endpoints for quick verification.
+- If you need more detailed inspection (security beans, filter chains), ask and I can add a dev-only inspector that logs them at startup.
 # Intelligent Travel Cost Optimizer (backend)
 
 This is a Spring Boot 3.x backend (Java 17+) for the Intelligent Travel Cost Optimizer project.

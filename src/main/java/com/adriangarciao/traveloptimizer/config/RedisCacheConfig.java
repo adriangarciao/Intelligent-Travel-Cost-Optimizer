@@ -7,6 +7,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.CacheManager;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.data.redis.cache.RedisCacheConfiguration;
 import org.springframework.data.redis.cache.RedisCacheManager;
@@ -18,13 +19,17 @@ import org.springframework.data.redis.serializer.RedisSerializationContext;
 import java.time.Duration;
 
 @Configuration
+@org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(prefix = "app.redis", name = "enabled", havingValue = "true", matchIfMissing = false)
+// Only enable Redis-backed CacheManager when the application explicitly enables it
+// via the `app.redis.enabled` property. This prevents the auto-configured
+// RedisConnectionFactory (which may point to localhost:6379 by default)
+// from causing the application to use Redis in local dev unintentionally.
 public class RedisCacheConfig {
 
     @Value("${app.cache.ttl.seconds:900}")
     private long defaultTtlSeconds;
 
     @Bean
-    @ConditionalOnBean(RedisConnectionFactory.class)
     public CacheManager cacheManager(RedisConnectionFactory redisConnectionFactory) {
         ObjectMapper mapper = new ObjectMapper();
         mapper.configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false);

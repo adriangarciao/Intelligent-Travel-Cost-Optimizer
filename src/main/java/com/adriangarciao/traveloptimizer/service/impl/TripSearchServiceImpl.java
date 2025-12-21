@@ -46,6 +46,8 @@ public class TripSearchServiceImpl implements TripSearchService {
                 private final com.adriangarciao.traveloptimizer.provider.LodgingSearchProvider lodgingSearchProvider;
                 private final com.adriangarciao.traveloptimizer.service.TripAssemblyService tripAssemblyService;
                 private final java.util.concurrent.Executor executor;
+                @org.springframework.beans.factory.annotation.Value("${ml.enabled:true}")
+                private boolean mlEnabled = true;
 
     /**
      * No-arg constructor kept for simple unit tests that instantiate the
@@ -137,7 +139,7 @@ public class TripSearchServiceImpl implements TripSearchService {
                     .confidence(0.65)
                     .build();
             // If an ML client is available, call it for updated predictions; otherwise return deterministic defaults
-            if (mlClient != null) {
+                        if (mlClient != null && mlEnabled) {
                 try {
                     MlBestDateWindowDTO mlWindow = mlClient.getBestDateWindow(request);
                     MlRecommendationDTO rec = mlClient.getOptionRecommendation(option, request);
@@ -236,8 +238,8 @@ public class TripSearchServiceImpl implements TripSearchService {
                 List<TripOptionSummaryDTO> limited = optionsPage.getContent().stream().map(tripOptionMapper::toDto).collect(Collectors.toList());
                 dto.setOptions(limited);
 
-                // Enrich with ML predictions if available; run with limited parallelism and simple retry
-                if (mlClient != null) {
+                // Enrich with ML predictions if enabled; run with limited parallelism and simple retry
+                if (mlEnabled && mlClient != null) {
                         java.util.concurrent.CompletableFuture<MlBestDateWindowDTO> mlWindowFuture = java.util.concurrent.CompletableFuture.supplyAsync(() -> {
                                 // simple retry once
                                 try {
@@ -282,6 +284,8 @@ public class TripSearchServiceImpl implements TripSearchService {
                                                                 log.warn("ML recommendation retry failed for option {}: {}", optionDto.getTripOptionId(), t2.toString());
                                                                 optionDto.setMlRecommendation(MlRecommendationDTO.builder().isGoodDeal(false).priceTrend("unknown").note("ML unavailable").build());
                                                         }
+
+                                                                
                                                 }
                                         }, executor).orTimeout(2, java.util.concurrent.TimeUnit.SECONDS).exceptionally(t -> {
                                                 log.warn("ML recommendation timeout for option {}: {}", optionDto.getTripOptionId(), t.toString());

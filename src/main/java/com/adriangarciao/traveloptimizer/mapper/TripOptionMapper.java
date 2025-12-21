@@ -18,8 +18,7 @@ public class TripOptionMapper {
         dto.setTotalPrice(entity.getTotalPrice());
         dto.setCurrency(entity.getCurrency());
         dto.setValueScore(entity.getValueScore());
-
-        // map flight option if present
+        // map flight option; provide fallback object if missing
         if (entity.getFlightOption() != null) {
             FlightOption fOpt = entity.getFlightOption();
             FlightSummaryDTO f = new FlightSummaryDTO();
@@ -29,9 +28,17 @@ public class TripOptionMapper {
             f.setDuration(fOpt.getDuration());
             f.setSegments(fOpt.getSegments());
             dto.setFlight(f);
+        } else {
+            FlightSummaryDTO f = new FlightSummaryDTO();
+            f.setAirline("Unknown");
+            f.setFlightNumber("");
+            f.setStops(0);
+            f.setDuration(null);
+            f.setSegments(java.util.List.of());
+            dto.setFlight(f);
         }
 
-        // map lodging option if present
+        // map lodging option; provide fallback object if missing
         if (entity.getLodgingOption() != null) {
             LodgingOption lOpt = entity.getLodgingOption();
             LodgingSummaryDTO l = new LodgingSummaryDTO();
@@ -40,6 +47,14 @@ public class TripOptionMapper {
             l.setRating(lOpt.getRating());
             l.setPricePerNight(lOpt.getPricePerNight());
             l.setNights(lOpt.getNights());
+            dto.setLodging(l);
+        } else {
+            LodgingSummaryDTO l = new LodgingSummaryDTO();
+            l.setHotelName("Unknown");
+            l.setLodgingType("Unknown");
+            l.setRating(0.0);
+            l.setPricePerNight(java.math.BigDecimal.ZERO);
+            l.setNights(0);
             dto.setLodging(l);
         }
 
