@@ -17,3 +17,5 @@ spring:
         dialect: org.hibernate.dialect.H2Dialect
 ml:
   enabled: false
+amadeus:
+  enabled: false

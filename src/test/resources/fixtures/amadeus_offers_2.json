@@ -1,0 +1,38 @@
+{
+  "data": [
+    {
+      "type": "flight-offer",
+      "id": "1",
+      "itineraries": [
+        {
+          "segments": [
+            {
+              "departure": { "iataCode": "SFO", "at": "2026-01-01T08:00" },
+              "arrival": { "iataCode": "JFK", "at": "2026-01-01T16:00" },
+              "carrierCode": "AA",
+              "duration": "PT8H"
+            }
+          ]
+        }
+      ],
+      "price": { "total": "350.00", "currency": "USD" }
+    },
+    {
+      "type": "flight-offer",
+      "id": "2",
+      "itineraries": [
+        {
+          "segments": [
+            {
+              "departure": { "iataCode": "SFO", "at": "2026-01-02T09:00" },
+              "arrival": { "iataCode": "JFK", "at": "2026-01-02T17:30" },
+              "carrierCode": "DL",
+              "duration": "PT8H30M"
+            }
+          ]
+        }
+      ],
+      "price": { "total": "420.50", "currency": "USD" }
+    }
+  ]
+}

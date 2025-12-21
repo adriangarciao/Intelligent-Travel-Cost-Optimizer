@@ -17,9 +17,6 @@ java -jar target/*-SNAPSHOT.jar --spring.profiles.active=dev-no-security
 ```
 
 Notes:
-- This profile is intended only for local development and testing. Do NOT use it in staging/production.
-- It configures an H2 in-memory datasource and excludes security auto-configuration to allow unauthenticated requests to API endpoints for quick verification.
-- If you need more detailed inspection (security beans, filter chains), ask and I can add a dev-only inspector that logs them at startup.
 # Intelligent Travel Cost Optimizer (backend)
 
 This is a Spring Boot 3.x backend (Java 17+) for the Intelligent Travel Cost Optimizer project.
@@ -50,24 +47,21 @@ mvn test
 
 CI
 
-- The repository includes a GitHub Actions workflow `CI` that runs Maven tests on push/PR to `main`.
 
 ![CI](https://github.com/adriangarciao/Intelligent-Travel-Cost-Optimizer/actions/workflows/ci.yml/badge.svg)
 
 Notes
 
-- Do not commit secrets. `.env` is ignored and `.env.example` provides placeholders.
-- Flyway migrations are located under `src/main/resources/db/migration` and will run automatically at startup when a DB is configured.
 
 **Testing & Integration Setup**
 
-- **Unit tests:** small, fast JVM tests (no Docker). Run with `mvn test`.
-- **Integration tests:** use Testcontainers to provide PostgreSQL and Redis and exercise Spring contexts.
-- **ML stubbing:** integration tests use the `WireMockMlServerExtension` which starts a dynamic-port WireMock server and registers ML stubs for:
   - `POST /predict/best-date-window` → 200 JSON
   - `POST /predict/option-recommendation` → 200 JSON
-- **CI:** runs integration tests on Docker-enabled runners (Testcontainers + WireMock). Ensure Docker is available in CI.
-- **Local runs:**
   - Quick: `mvn test` (integration tests start Docker containers via Testcontainers)
   - If you need unit-only runs: run specific tests with `-Dtest=...` or use test categories/naming conventions.
-- **ML failure coverage:** negative ML scenarios are covered by `TripSearchMlFailureTest` (it intentionally points at an unused ML port to verify fallback behavior).
+
+Amadeus integration (optional)
+- To enable Amadeus Self-Service flight offers locally, set the following env vars (do NOT commit secrets):
+  - `AMADEUS_API_KEY` and `AMADEUS_API_SECRET`
+- Then set `amadeus.enabled=true` (e.g., export/set env var) and optionally `amadeus.base-url` (test API is default).
+- The code respects caching and a short timeout to avoid hitting Amadeus rate limits. Tests use WireMock and do not call the real Amadeus API.
