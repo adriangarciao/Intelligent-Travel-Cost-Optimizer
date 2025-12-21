@@ -12,9 +12,7 @@ spring:
   jpa:
     hibernate:
       ddl-auto: update
-    properties:
-      hibernate:
-        dialect: org.hibernate.dialect.H2Dialect
+    # Let Hibernate auto-detect the dialect from the JDBC metadata; explicit dialect is unnecessary for H2 here.
 ml:
   enabled: false
 amadeus:
