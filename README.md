@@ -1,3 +1,49 @@
+Traveloptimizer — Local Development
+
+## Local Dev
+
+This project runs a Spring Boot backend and a Vite-based frontend. The backend expects a PostgreSQL database for local development.
+
+1) Start Postgres with Docker Compose
+
+PowerShell:
+
+    # Copy the example file and set real secrets (do NOT commit this file)
+    Copy-Item .env.postgres.example .env.postgres
+    # Edit .env.postgres and set a secure password
+    docker compose up -d postgres
+
+2) Set required environment variables (PowerShell)
+
+    # $env:SPRING_DATASOURCE_URL points to the DB. Example:
+    $env:SPRING_DATASOURCE_URL = 'jdbc:postgresql://localhost:5433/traveloptimizer'
+    $env:SPRING_DATASOURCE_USERNAME = 'postgres'
+    $env:SPRING_DATASOURCE_PASSWORD = 'your_db_password'
+
+    # Optional: export DB_* fallback variables if scripts expect them
+    $env:DB_URL = $env:SPRING_DATASOURCE_URL
+    $env:DB_USERNAME = $env:SPRING_DATASOURCE_USERNAME
+    $env:DB_PASSWORD = $env:SPRING_DATASOURCE_PASSWORD
+
+3) Start the backend
+
+    # mvn may need JAVA_HOME pointing to JDK 17
+    mvn -DskipTests spring-boot:run
+
+4) Start the frontend
+
+    cd frontend
+    npm install
+    npm run dev
+
+5) Verify the backend
+
+    # Check actuator health
+    curl http://localhost:8080/actuator/health
+
+Notes:
+ - The compose file exposes Postgres on host port 5433 and configures the container to listen on 5433 for consistency with local dev.
+ - Do NOT commit `.env.postgres` containing real passwords. Use `.env.postgres.example` as a template.
 # Local dev: `dev-no-security` profile
 
 This repository includes a temporary development-only profile `dev-no-security` that disables authentication for local verification.
