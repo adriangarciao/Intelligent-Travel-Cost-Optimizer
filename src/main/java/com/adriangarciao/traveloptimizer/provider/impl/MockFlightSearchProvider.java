@@ -2,6 +2,7 @@ package com.adriangarciao.traveloptimizer.provider.impl;
 
 import com.adriangarciao.traveloptimizer.dto.TripSearchRequestDTO;
 import com.adriangarciao.traveloptimizer.provider.FlightOffer;
+import com.adriangarciao.traveloptimizer.provider.FlightSearchResult;
 import com.adriangarciao.traveloptimizer.provider.FlightSearchProvider;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
@@ -16,8 +17,8 @@ import java.util.List;
 public class MockFlightSearchProvider implements FlightSearchProvider {
 
     @Override
-    public List<FlightOffer> searchFlights(TripSearchRequestDTO request) {
-        List<FlightOffer> offers = new ArrayList<>();
+        public FlightSearchResult searchFlights(TripSearchRequestDTO request) {
+                List<FlightOffer> offers = new ArrayList<>();
         // Deterministic generation based on origin/destination/date
         int base = Math.abs((request.getOrigin() + request.getDestination()).hashCode()) % 100;
         LocalDate depart = request.getEarliestDepartureDate() != null ? request.getEarliestDepartureDate() : LocalDate.now().plusDays(7);
@@ -57,6 +58,6 @@ public class MockFlightSearchProvider implements FlightSearchProvider {
                 .deepLink(null)
                 .build());
 
-        return offers;
+                return FlightSearchResult.ok(offers);
     }
 }

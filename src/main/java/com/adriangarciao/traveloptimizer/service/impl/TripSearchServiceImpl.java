@@ -49,6 +49,9 @@ public class TripSearchServiceImpl implements TripSearchService {
                 @org.springframework.beans.factory.annotation.Value("${ml.enabled:true}")
                 private boolean mlEnabled = true;
 
+                @org.springframework.beans.factory.annotation.Value("${providers.flight-timeout-seconds:10}")
+                private long flightProviderTimeoutSeconds = 10;
+
     /**
      * No-arg constructor kept for simple unit tests that instantiate the
      * implementation directly. Repositories/mappers will be null in that case
@@ -172,21 +175,21 @@ public class TripSearchServiceImpl implements TripSearchService {
                 TripSearch toSave = tripSearchMapper.toEntity(request);
 
                 // Run flight and lodging searches in parallel with timeouts and graceful fallbacks
-                java.util.concurrent.CompletableFuture<List<com.adriangarciao.traveloptimizer.provider.FlightOffer>> flightsFuture = null;
+                java.util.concurrent.CompletableFuture<com.adriangarciao.traveloptimizer.provider.FlightSearchResult> flightsFuture = null;
                 java.util.concurrent.CompletableFuture<List<com.adriangarciao.traveloptimizer.provider.LodgingOffer>> lodgingsFuture = null;
 
                 if (flightSearchProvider != null) {
                         flightsFuture = java.util.concurrent.CompletableFuture.supplyAsync(() -> flightSearchProvider.searchFlights(request), executor)
-                                        .orTimeout(3, java.util.concurrent.TimeUnit.SECONDS)
+                                        .orTimeout(this.flightProviderTimeoutSeconds, java.util.concurrent.TimeUnit.SECONDS)
                                         .exceptionally(t -> {
                                                 log.warn("Flight provider failed/timeout: {}", t.toString());
-                                                return List.of();
+                                                return com.adriangarciao.traveloptimizer.provider.FlightSearchResult.failure(com.adriangarciao.traveloptimizer.provider.ProviderStatus.TIMEOUT, "Provider future failed");
                                         });
                 }
 
                 if (lodgingSearchProvider != null) {
                         lodgingsFuture = java.util.concurrent.CompletableFuture.supplyAsync(() -> lodgingSearchProvider.searchLodging(request), executor)
-                                        .orTimeout(3, java.util.concurrent.TimeUnit.SECONDS)
+                                        .orTimeout(this.flightProviderTimeoutSeconds, java.util.concurrent.TimeUnit.SECONDS)
                                         .exceptionally(t -> {
                                                 log.warn("Lodging provider failed/timeout: {}", t.toString());
                                                 return List.of();
@@ -195,17 +198,30 @@ public class TripSearchServiceImpl implements TripSearchService {
 
                 List<com.adriangarciao.traveloptimizer.provider.FlightOffer> flights = List.of();
                 List<com.adriangarciao.traveloptimizer.provider.LodgingOffer> lodgings = List.of();
+                com.adriangarciao.traveloptimizer.provider.FlightSearchResult flightsResult = null;
                 try {
-                        if (flightsFuture != null) flights = flightsFuture.get();
+                        if (flightsFuture != null) flightsResult = flightsFuture.get();
                 } catch (Throwable t) {
                         log.warn("Failed to get flights: {}", t.toString());
-                        flights = List.of();
+                        flightsResult = com.adriangarciao.traveloptimizer.provider.FlightSearchResult.failure(com.adriangarciao.traveloptimizer.provider.ProviderStatus.TIMEOUT, "Failed to execute flight provider");
                 }
                 try {
                         if (lodgingsFuture != null) lodgings = lodgingsFuture.get();
                 } catch (Throwable t) {
                         log.warn("Failed to get lodgings: {}", t.toString());
                         lodgings = List.of();
+                }
+
+                // Interpret flight provider result
+                if (flightsResult != null) {
+                        if (flightsResult.getStatus() == com.adriangarciao.traveloptimizer.provider.ProviderStatus.OK) {
+                                flights = flightsResult.getOffers();
+                        } else if (flightsResult.getStatus() == com.adriangarciao.traveloptimizer.provider.ProviderStatus.NO_RESULTS) {
+                                flights = List.of();
+                        } else {
+                                // non-OK status: keep flights empty but record provider metadata on response later
+                                flights = List.of();
+                        }
                 }
 
                 List<TripOption> assembled = Collections.emptyList();
@@ -237,6 +253,15 @@ public class TripSearchServiceImpl implements TripSearchService {
                 Page<TripOption> optionsPage = tripOptionRepository.findByTripSearchId(saved.getId(), PageRequest.of(0, safeLimit, Sort.by(dir, safeSortBy)));
                 List<TripOptionSummaryDTO> limited = optionsPage.getContent().stream().map(tripOptionMapper::toDto).collect(Collectors.toList());
                 dto.setOptions(limited);
+
+                // Surface provider metadata to the API response so frontend can distinguish no-results vs errors
+                if (flightsResult != null) {
+                        dto.setFlightProviderStatus(flightsResult.getStatus() != null ? flightsResult.getStatus().name() : null);
+                        dto.setFlightProviderMessage(flightsResult.getMessage());
+                } else {
+                        dto.setFlightProviderStatus(null);
+                        dto.setFlightProviderMessage(null);
+                }
 
                 // Enrich with ML predictions if enabled; run with limited parallelism and simple retry
                 if (mlEnabled && mlClient != null) {
