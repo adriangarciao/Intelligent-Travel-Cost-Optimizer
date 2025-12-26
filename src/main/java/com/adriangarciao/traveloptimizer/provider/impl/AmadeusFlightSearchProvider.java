@@ -35,6 +35,7 @@ public class AmadeusFlightSearchProvider implements FlightSearchProvider {
     private final ObjectMapper mapper = new ObjectMapper();
     private final int maxResults;
     private final long timeoutMs;
+    private final boolean debugAmadeus;
 
     public AmadeusFlightSearchProvider(AmadeusAuthClient authClient,
                                        @Value("${amadeus.base-url:https://test.api.amadeus.com}") String baseUrl,
@@ -44,6 +45,8 @@ public class AmadeusFlightSearchProvider implements FlightSearchProvider {
         this.webClient = WebClient.builder().baseUrl(baseUrl).build();
         this.maxResults = Math.max(2, Math.min(maxResults, 20));
         this.timeoutMs = timeoutMs;
+        // read debug flag from env
+        this.debugAmadeus = Boolean.parseBoolean(System.getProperty("app.debug.amadeus", System.getenv().getOrDefault("APP_DEBUG_AMADEUS", "false")));
     }
 
     @Override
@@ -55,6 +58,11 @@ public class AmadeusFlightSearchProvider implements FlightSearchProvider {
             String token = authClient.getAccessToken();
             // Observability: token acquired (do NOT log token itself)
             log.info("Amadeus token acquired (timeoutMs={}ms) for origin={} dest={}", this.timeoutMs, request.getOrigin(), request.getDestination());
+            if (this.debugAmadeus) {
+                log.info("Amadeus request params: originLocationCode={} destinationLocationCode={} departureDate={} returnDate={} adults={} nonStop={} max={} currencyCode={} maxPrice={}",
+                        request.getOrigin(), request.getDestination(), request.getEarliestDepartureDate(), request.getEarliestReturnDate(), request.getNumTravelers(),
+                        (request.getPreferences() != null && request.getPreferences().isNonStopOnly()), this.maxResults, "USD", request.getMaxBudget());
+            }
             WebClient.RequestHeadersSpec<?> reqSpec = webClient.get().uri(uriBuilder -> {
                 uriBuilder.path("/v2/shopping/flight-offers");
                 uriBuilder.queryParam("originLocationCode", request.getOrigin());
@@ -82,6 +90,44 @@ public class AmadeusFlightSearchProvider implements FlightSearchProvider {
             long elapsed = System.currentTimeMillis() - start;
             JsonNode root = body != null ? mapper.readTree(body) : null;
             List<FlightOffer> offers = parseOffers(root);
+            // Filter offers to those that begin at request.origin and end at request.destination (exact match)
+            java.util.List<FlightOffer> filtered = new java.util.ArrayList<>();
+            for (FlightOffer fo : offers) {
+                try {
+                    if (fo.getSegments() == null || fo.getSegments().isEmpty()) continue;
+                    String firstSeg = fo.getSegments().get(0);
+                    String lastSeg = fo.getSegments().get(fo.getSegments().size() - 1);
+                    String firstDep = firstSeg.split("→")[0];
+                    String lastArr = lastSeg.split("→")[1];
+                    if (request.getOrigin().equalsIgnoreCase(firstDep) && request.getDestination().equalsIgnoreCase(lastArr)) {
+                        filtered.add(fo);
+                    } else {
+                        if (this.debugAmadeus) log.info("Filtered out offer: firstDep={} lastArr={} not matching {}->{}", firstDep, lastArr, request.getOrigin(), request.getDestination());
+                    }
+                } catch (Exception e) {
+                    // keep offer if parsing fails
+                    filtered.add(fo);
+                }
+            }
+            offers = filtered;
+            if (this.debugAmadeus && offers != null && !offers.isEmpty()) {
+                int i = 0;
+                for (FlightOffer fo : offers) {
+                    if (i++ >= 2) break;
+                    StringBuilder sb = new StringBuilder();
+                    sb.append("Offer summary: price=").append(fo.getPrice()).append(" currency=").append(fo.getCurrency());
+                    if (fo.getSegments() != null) {
+                        for (String seg : fo.getSegments()) {
+                            String[] parts = seg.split("→");
+                            String dep = parts.length>0?parts[0]:"?";
+                            String arr = parts.length>1?parts[1]:"?";
+                            sb.append("; ").append(dep).append("->").append(arr);
+                        }
+                    }
+                    sb.append("; stops=").append(fo.getStops()).append("; duration=").append(fo.getDurationText());
+                    log.info(sb.toString());
+                }
+            }
             int offersCount = offers != null ? offers.size() : 0;
             log.info("Amadeus offers returned: {} (origin={} dest={} timeoutMs={}ms elapsedMs={})", offersCount, request.getOrigin(), request.getDestination(), this.timeoutMs, elapsed);
             if (offersCount == 0) return com.adriangarciao.traveloptimizer.provider.FlightSearchResult.noResults();

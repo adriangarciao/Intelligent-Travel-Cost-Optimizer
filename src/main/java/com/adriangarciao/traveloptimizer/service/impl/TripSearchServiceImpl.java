@@ -49,6 +49,9 @@ public class TripSearchServiceImpl implements TripSearchService {
                 @org.springframework.beans.factory.annotation.Value("${ml.enabled:true}")
                 private boolean mlEnabled = true;
 
+                @org.springframework.beans.factory.annotation.Value("${travel.providers.flights:}")
+                private String travelProvidersFlights;
+
                 @org.springframework.beans.factory.annotation.Value("${providers.flight-timeout-seconds:10}")
                 private long flightProviderTimeoutSeconds = 10;
 
@@ -108,6 +111,9 @@ public class TripSearchServiceImpl implements TripSearchService {
         @Override
                 @org.springframework.cache.annotation.Cacheable(value = "tripSearchCache", keyGenerator = "tripSearchKeyGenerator", unless = "#result == null")
         public TripSearchResponseDTO searchTrips(TripSearchRequestDTO request, Integer limit, String sortBy, String sortDir) {
+                log.info("Search request start: origin={} dest={} travel.providers.flights={} providerBean={}", request.getOrigin(), request.getDestination(), travelProvidersFlights, (flightSearchProvider != null ? flightSearchProvider.getClass().getName() : "null"));
+                boolean isAmadeus = (flightSearchProvider != null) && flightSearchProvider.getClass().getName().contains("AmadeusFlightSearchProvider");
+                log.info("Using Amadeus provider? {}", isAmadeus);
         // If repositories/mappers are not available (unit tests), return a lightweight dummy response
         if (tripSearchRepository == null || tripSearchMapper == null) {
             TripOptionSummaryDTO option = TripOptionSummaryDTO.builder()
@@ -251,8 +257,26 @@ public class TripSearchServiceImpl implements TripSearchService {
                 String safeSortBy = (sortBy == null || sortBy.isBlank()) ? "valueScore" : sortBy;
                 Sort.Direction dir = ("asc".equalsIgnoreCase(sortDir)) ? Sort.Direction.ASC : Sort.Direction.DESC;
                 Page<TripOption> optionsPage = tripOptionRepository.findByTripSearchId(saved.getId(), PageRequest.of(0, safeLimit, Sort.by(dir, safeSortBy)));
-                List<TripOptionSummaryDTO> limited = optionsPage.getContent().stream().map(tripOptionMapper::toDto).collect(Collectors.toList());
-                dto.setOptions(limited);
+                                List<TripOptionSummaryDTO> limited = optionsPage.getContent().stream().map(tripOptionMapper::toDto).collect(Collectors.toList());
+
+                                // Preserve transient valueScoreBreakdown computed during assembly.
+                                // The assembled list contains the transient breakdowns but they are not persisted.
+                                // Build a small lookup by flightNumber + totalPrice to re-attach breakdowns to the DTOs.
+                                java.util.Map<String, java.util.Map<String, Double>> breakdownMap = new java.util.HashMap<>();
+                                for (TripOption a : assembled) {
+                                        if (a.getValueScoreBreakdown() != null && a.getFlightOption() != null) {
+                                                String key = (a.getFlightOption().getFlightNumber() == null ? "" : a.getFlightOption().getFlightNumber()) + "|" + a.getTotalPrice().doubleValue();
+                                                breakdownMap.put(key, a.getValueScoreBreakdown());
+                                        }
+                                }
+                                for (TripOptionSummaryDTO dtoOpt : limited) {
+                                        String key = (dtoOpt.getFlight() != null && dtoOpt.getFlight().getFlightNumber() != null ? dtoOpt.getFlight().getFlightNumber() : "") + "|" + dtoOpt.getTotalPrice();
+                                        if (breakdownMap.containsKey(key)) {
+                                                dtoOpt.setValueScoreBreakdown(breakdownMap.get(key));
+                                        }
+                                }
+
+                                dto.setOptions(limited);
 
                 // Surface provider metadata to the API response so frontend can distinguish no-results vs errors
                 if (flightsResult != null) {

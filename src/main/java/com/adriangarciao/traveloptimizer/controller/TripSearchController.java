@@ -40,6 +40,10 @@ public class TripSearchController {
             @RequestParam(value = "limit", required = false) Integer limit,
             @RequestParam(value = "sortBy", required = false) String sortBy,
             @RequestParam(value = "sortDir", required = false) String sortDir) {
+        // Log inbound DTO for observability (no secrets)
+        org.slf4j.LoggerFactory.getLogger(TripSearchController.class)
+            .info("Inbound search request: origin={} destination={} earliestDepartureDate={} latestDepartureDate={} numTravelers={} maxBudget={}",
+                request.getOrigin(), request.getDestination(), request.getEarliestDepartureDate(), request.getLatestDepartureDate(), request.getNumTravelers(), request.getMaxBudget());
         TripSearchResponseDTO response = tripSearchService.searchTrips(request, limit, sortBy, sortDir);
         return ResponseEntity.ok(response);
     }

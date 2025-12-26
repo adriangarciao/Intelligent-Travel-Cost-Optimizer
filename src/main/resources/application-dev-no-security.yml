@@ -14,6 +14,8 @@ spring:
   jpa:
     hibernate:
       ddl-auto: update
+  cache:
+    type: none
     # Let Hibernate auto-detect the dialect from the JDBC metadata when using a real DB.
 ml:
   enabled: false

@@ -18,6 +18,11 @@ public class TripOptionMapper {
         dto.setTotalPrice(entity.getTotalPrice());
         dto.setCurrency(entity.getCurrency());
         dto.setValueScore(entity.getValueScore());
+        // optional DEV-only breakdown
+        boolean debugBreakdown = Boolean.parseBoolean(System.getProperty("app.debug.valueScoreBreakdown", System.getenv().getOrDefault("APP_DEBUG_VALUE_SCORE_BREAKDOWN","false")));
+        if (debugBreakdown && entity.getValueScoreBreakdown() != null) {
+            dto.setValueScoreBreakdown(entity.getValueScoreBreakdown());
+        }
         // map flight option; provide fallback object if missing
         if (entity.getFlightOption() != null) {
             FlightOption fOpt = entity.getFlightOption();
