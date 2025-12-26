@@ -18,4 +18,12 @@ spring:
 ml:
   enabled: false
 amadeus:
-  enabled: false
+  enabled: true
+  # Read API credentials from environment variables in dev. Do NOT commit secrets.
+  api-key: ${AMADEUS_API_KEY:}
+  api-secret: ${AMADEUS_API_SECRET:}
+
+# Ensure dev profile selects Amadeus provider instead of mock
+travel:
+  providers:
+    flights: ${TRAVEL_PROVIDERS_FLIGHTS:amadeus}
