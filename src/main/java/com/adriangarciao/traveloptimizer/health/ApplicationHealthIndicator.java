@@ -72,7 +72,9 @@ public class ApplicationHealthIndicator implements HealthIndicator {
         String mlBase = env.getProperty("ml.service.base-url");
         if (mlBase != null && !mlBase.isBlank()) {
             if (webClientBuilder == null) {
-                hb.down().withDetail("ml", "no-webclient-builder");
+                // Do not mark the whole application DOWN just because an optional ML client
+                // is not available in local/dev. Record the state but keep overall UP.
+                hb.withDetail("ml", "no-webclient-builder");
             } else {
                 try {
                     WebClient client = webClientBuilder.baseUrl(mlBase).build();
