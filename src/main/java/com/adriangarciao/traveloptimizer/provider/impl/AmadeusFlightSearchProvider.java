@@ -168,12 +168,12 @@ public class AmadeusFlightSearchProvider implements FlightSearchProvider {
                             if (num != null && !num.isEmpty()) flightNumber = (code != null && !code.isEmpty() ? code + " " + num : num);
                             else flightNumber = "";
                         } else {
-                            // for additional segments, append with separator
+                            // for additional segments, append with separator (include duplicates)
                             String num = seg.path("number").asText("");
                             String code = seg.path("carrierCode").asText("");
                             if (num != null && !num.isEmpty()) {
                                 String part = (code != null && !code.isEmpty() ? code + " " + num : num);
-                                if (!part.equals(flightNumber)) flightNumber = flightNumber + " / " + part;
+                                flightNumber = flightNumber + " / " + part;
                             }
                         }
                     }
