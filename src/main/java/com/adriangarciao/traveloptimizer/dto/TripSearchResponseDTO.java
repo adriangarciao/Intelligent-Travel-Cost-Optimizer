@@ -23,4 +23,7 @@ public class TripSearchResponseDTO implements Serializable {
     private String currency;
     private List<TripOptionSummaryDTO> options;
     private MlBestDateWindowDTO mlBestDateWindow;
+    // Provider metadata for flight search
+    private String flightProviderStatus;
+    private String flightProviderMessage;
 }

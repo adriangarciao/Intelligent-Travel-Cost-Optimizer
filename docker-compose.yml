@@ -14,7 +14,10 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB} -p 5432"]
+      # Use double-dollar to avoid Compose variable substitution so the container's
+      # runtime environment variables `POSTGRES_USER` and `POSTGRES_DB` are used
+      # by the check (prevents host-side missing env from breaking the test).
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB -p 5432"]
       interval: 10s
       timeout: 5s
       retries: 5

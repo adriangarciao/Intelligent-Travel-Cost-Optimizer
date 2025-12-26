@@ -62,7 +62,8 @@ public class AmadeusFlightSearchProviderTest {
                 .maxBudget(BigDecimal.valueOf(1000))
                 .build();
 
-        List<com.adriangarciao.traveloptimizer.provider.FlightOffer> offers = provider.searchFlights(req);
+        com.adriangarciao.traveloptimizer.provider.FlightSearchResult result = provider.searchFlights(req);
+        List<com.adriangarciao.traveloptimizer.provider.FlightOffer> offers = result.getOffers();
         assertThat(offers).hasSize(2);
         assertThat(offers.get(0).getAirline()).isEqualTo("AA");
         assertThat(offers.get(0).getStops()).isEqualTo(0);
@@ -72,7 +73,8 @@ public class AmadeusFlightSearchProviderTest {
         verify(postRequestedFor(urlEqualTo("/v1/security/oauth2/token")));
 
         // second call should reuse token (no additional token request)
-        List<com.adriangarciao.traveloptimizer.provider.FlightOffer> offers2 = provider.searchFlights(req);
+        com.adriangarciao.traveloptimizer.provider.FlightSearchResult result2 = provider.searchFlights(req);
+        List<com.adriangarciao.traveloptimizer.provider.FlightOffer> offers2 = result2.getOffers();
         assertThat(offers2).hasSize(2);
         verify(1, postRequestedFor(urlEqualTo("/v1/security/oauth2/token")));
     }

@@ -33,6 +33,9 @@ public class TripOption {
     @Column(name = "value_score")
     private double valueScore;
 
+    @Transient
+    private java.util.Map<String, Double> valueScoreBreakdown;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "trip_search_id")
     private TripSearch tripSearch;

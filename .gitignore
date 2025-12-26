@@ -35,3 +35,4 @@ build/
 # Ignore local env files containing secrets
 .env
 .env.postgres
+.env.amadeus

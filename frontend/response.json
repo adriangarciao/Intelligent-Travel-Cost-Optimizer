@@ -1,0 +1,10 @@
+﻿{
+    "searchId":  "50578244-4e30-4636-9eaf-fa37a7b0b516",
+    "origin":  "JFK",
+    "destination":  "LAX",
+    "currency":  "USD",
+    "options":  [
+
+                ],
+    "mlBestDateWindow":  null
+}

@@ -29,6 +29,8 @@ public class FlightOption implements java.io.Serializable {
     private UUID id;
 
     private String airline;
+    private String airlineCode;
+    private String airlineName;
     private String flightNumber;
     private int stops;
     @Column(name = "duration")

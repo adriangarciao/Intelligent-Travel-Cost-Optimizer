@@ -1,0 +1,8 @@
+﻿{
+    "destination":  "LAX",
+    "earliestDepartureDate":  "2026-01-15",
+    "maxBudget":  1000,
+    "numTravelers":  1,
+    "latestDepartureDate":  "2026-01-20",
+    "origin":  "JFK"
+}

@@ -1,0 +1,28 @@
+{
+  "data": [
+    {
+      "price": { "total": "350.00", "currency": "USD" },
+      "itineraries": [
+        {
+          "duration": "PT4H24M",
+          "segments": [
+            {
+              "carrierCode": "AA",
+              "number": "100",
+              "departure": { "iataCode": "JFK", "at": "2026-01-10T08:00:00" },
+              "arrival": { "iataCode": "DEN", "at": "2026-01-10T10:12:00" },
+              "duration": "PT2H12M"
+            },
+            {
+              "carrierCode": "AA",
+              "number": "100",
+              "departure": { "iataCode": "DEN", "at": "2026-01-10T12:00:00" },
+              "arrival": { "iataCode": "LAX", "at": "2026-01-10T14:12:00" },
+              "duration": "PT2H12M"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
