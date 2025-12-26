@@ -16,11 +16,11 @@ import java.util.List;
 public class FlightOffer {
     private String airline;
     private String airlineCode;
-    private String airlineDisplay;
+    private String airlineName;
     private String flightNumber;
     private int stops;
     private int durationMinutes;
-    private String duration;
+    private String durationText;
     private List<String> segments;
     private LocalDate departDate;
     private LocalDate returnDate;

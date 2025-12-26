@@ -152,7 +152,7 @@ public class AmadeusFlightSearchProvider implements FlightSearchProvider {
                         String arr = seg.path("arrival").path("iataCode").asText(null);
                         if (dep == null) dep = seg.path("departure").path("at").asText("");
                         if (arr == null) arr = seg.path("arrival").path("at").asText("");
-                        if (dep != null && arr != null) segmentList.add(dep + "->" + arr);
+                        if (dep != null && arr != null) segmentList.add(dep + "→" + arr);
 
                         if ((itinDurationNode == null || itinDurationNode.isMissingNode() || !itinDurationNode.isTextual())) {
                             JsonNode segDur = seg.path("duration");
@@ -163,7 +163,18 @@ public class AmadeusFlightSearchProvider implements FlightSearchProvider {
 
                         // flight number from first segment
                         if (flightNumber.isEmpty()) {
-                            flightNumber = seg.path("number").asText("");
+                            String num = seg.path("number").asText("");
+                            String code = seg.path("carrierCode").asText("");
+                            if (num != null && !num.isEmpty()) flightNumber = (code != null && !code.isEmpty() ? code + " " + num : num);
+                            else flightNumber = "";
+                        } else {
+                            // for additional segments, append with separator
+                            String num = seg.path("number").asText("");
+                            String code = seg.path("carrierCode").asText("");
+                            if (num != null && !num.isEmpty()) {
+                                String part = (code != null && !code.isEmpty() ? code + " " + num : num);
+                                if (!part.equals(flightNumber)) flightNumber = flightNumber + " / " + part;
+                            }
                         }
                     }
                 }
@@ -183,18 +194,22 @@ public class AmadeusFlightSearchProvider implements FlightSearchProvider {
                     "F9","Frontier",
                     "AA","American",
                     "UA","United",
-                    "DL","Delta"
+                    "DL","Delta",
+                    "WN","Southwest",
+                    "NK","Spirit",
+                    "B6","JetBlue",
+                    "AS","Alaska"
                 );
 
                 FlightOffer fo = FlightOffer.builder()
                     .airline(carrier != null ? carrier : "")
                     .airlineCode(carrier != null ? carrier : "")
-                    .airlineDisplay(airlineMap.getOrDefault(carrier != null ? carrier : "", carrier != null ? carrier : ""))
+                    .airlineName(airlineMap.getOrDefault(carrier != null ? carrier : "", carrier != null ? carrier : ""))
                     .flightNumber(flightNumber == null ? "" : flightNumber)
                     .segments(segmentList)
                     .stops(Math.max(0, segCount - 1))
                     .durationMinutes(durationMinutes)
-                    .duration(durationHuman)
+                    .durationText(durationHuman)
                     .departDate(departDate)
                     .returnDate(null)
                     .price(price)

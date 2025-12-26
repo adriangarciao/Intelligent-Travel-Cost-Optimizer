@@ -62,8 +62,10 @@ public class AmadeusFlightParsingTest {
         com.adriangarciao.traveloptimizer.provider.FlightOffer fo = offers.get(0);
 
         assertThat(fo.getFlightNumber()).isNotNull().isNotEmpty();
-        assertThat(fo.getDuration()).isEqualTo("4h 24m");
+        assertThat(fo.getFlightNumber()).isEqualTo("AA 100 / AA 100");
+        assertThat(fo.getDurationText()).isEqualTo("4h 24m");
         assertThat(fo.getSegments()).hasSize(2);
+        assertThat(fo.getSegments().get(0)).isEqualTo("JFK→DEN");
         assertThat(fo.getStops()).isEqualTo(fo.getSegments().size() - 1);
     }
 
