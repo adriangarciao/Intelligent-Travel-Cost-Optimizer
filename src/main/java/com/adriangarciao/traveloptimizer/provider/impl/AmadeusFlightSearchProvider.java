@@ -129,31 +129,78 @@ public class AmadeusFlightSearchProvider implements FlightSearchProvider {
                 int segCount = segments.isArray() ? segments.size() : 0;
                 String carrier = null;
                 int durationMinutes = 0;
+                String durationHuman = "";
                 LocalDate departDate = null;
+                String flightNumber = "";
+                java.util.List<String> segmentList = new java.util.ArrayList<>();
+
+                // Prefer itinerary duration if present
+                JsonNode itinDurationNode = firstItin.path("duration");
+                if (itinDurationNode != null && !itinDurationNode.isMissingNode() && itinDurationNode.isTextual()) {
+                    durationMinutes = isoDurationToMinutes(itinDurationNode.asText());
+                }
+
                 if (segCount > 0) {
                     JsonNode firstSeg = segments.get(0);
                     carrier = firstSeg.path("carrierCode").asText(null);
                     String departAt = firstSeg.path("departure").path("at").asText(null);
                     if (departAt != null) departDate = LocalDate.parse(departAt.substring(0, 10), DateTimeFormatter.ISO_DATE);
-                    // compute duration from segments durations if present
-                    JsonNode durNode = firstSeg.path("duration");
-                    if (durNode != null && !durNode.isMissingNode() && durNode.isTextual()) {
-                        durationMinutes = isoDurationToMinutes(durNode.asText());
+
+                    // collect segments and possibly sum durations if itinerary duration missing
+                    for (JsonNode seg : segments) {
+                        String dep = seg.path("departure").path("iataCode").asText(null);
+                        String arr = seg.path("arrival").path("iataCode").asText(null);
+                        if (dep == null) dep = seg.path("departure").path("at").asText("");
+                        if (arr == null) arr = seg.path("arrival").path("at").asText("");
+                        if (dep != null && arr != null) segmentList.add(dep + "->" + arr);
+
+                        if ((itinDurationNode == null || itinDurationNode.isMissingNode() || !itinDurationNode.isTextual())) {
+                            JsonNode segDur = seg.path("duration");
+                            if (segDur != null && segDur.isTextual()) {
+                                durationMinutes += isoDurationToMinutes(segDur.asText());
+                            }
+                        }
+
+                        // flight number from first segment
+                        if (flightNumber.isEmpty()) {
+                            flightNumber = seg.path("number").asText("");
+                        }
                     }
+                }
+
+                // human-readable duration
+                if (durationMinutes > 0) {
+                    int hours = durationMinutes / 60;
+                    int minutes = durationMinutes % 60;
+                    if (hours > 0) durationHuman = hours + "h " + minutes + "m";
+                    else durationHuman = minutes + "m";
                 }
 
                 BigDecimal price = total != null ? new BigDecimal(total) : BigDecimal.ZERO;
 
+                // airline display mapping
+                java.util.Map<String,String> airlineMap = java.util.Map.of(
+                    "F9","Frontier",
+                    "AA","American",
+                    "UA","United",
+                    "DL","Delta"
+                );
+
                 FlightOffer fo = FlightOffer.builder()
-                        .airline(carrier != null ? carrier : "")
-                        .stops(Math.max(0, segCount - 1))
-                        .durationMinutes(durationMinutes)
-                        .departDate(departDate)
-                        .returnDate(null)
-                        .price(price)
-                        .currency(currency)
-                        .deepLink(null)
-                        .build();
+                    .airline(carrier != null ? carrier : "")
+                    .airlineCode(carrier != null ? carrier : "")
+                    .airlineDisplay(airlineMap.getOrDefault(carrier != null ? carrier : "", carrier != null ? carrier : ""))
+                    .flightNumber(flightNumber == null ? "" : flightNumber)
+                    .segments(segmentList)
+                    .stops(Math.max(0, segCount - 1))
+                    .durationMinutes(durationMinutes)
+                    .duration(durationHuman)
+                    .departDate(departDate)
+                    .returnDate(null)
+                    .price(price)
+                    .currency(currency)
+                    .deepLink(null)
+                    .build();
                 out.add(fo);
                 if (out.size() >= this.maxResults) break;
             } catch (Exception ex) {
