@@ -3,6 +3,7 @@ import { Routes, Route, Link } from 'react-router-dom'
 import SearchPage from './pages/SearchPage'
 import ResultsPage from './pages/ResultsPage'
 import SavedPage from './pages/SavedPage'
+import SavedOffersPage from './pages/SavedOffersPage'
 
 export default function App() {
   return (
@@ -14,7 +15,8 @@ export default function App() {
             Travel Optimizer
           </Link>
           <nav className="flex gap-3">
-            <Link to="/saved" className="text-sm text-gray-600">Saved</Link>
+            <Link to="/saved/offers" className="text-sm text-gray-600">Saved Offers</Link>
+            <Link to="/saved" className="text-sm text-gray-600">Saved Searches</Link>
           </nav>
         </div>
       </header>
@@ -23,6 +25,7 @@ export default function App() {
           <Route path="/" element={<SearchPage />} />
           <Route path="/results/:searchId" element={<ResultsPage />} />
           <Route path="/saved" element={<SavedPage />} />
+          <Route path="/saved/offers" element={<SavedOffersPage />} />
         </Routes>
       </main>
     </div>
