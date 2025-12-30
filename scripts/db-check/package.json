@@ -1,0 +1,11 @@
+{
+  "name": "traveloptimizer-db-check",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Small helper to verify DB migrations for traveloptimizer",
+  "license": "MIT",
+  "dependencies": {
+    "pg": "^8.11.0",
+    "dotenv": "^16.0.0"
+  }
+}

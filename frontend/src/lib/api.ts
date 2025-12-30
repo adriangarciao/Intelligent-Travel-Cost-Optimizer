@@ -11,6 +11,7 @@ export function getClientId() {
   return id
 }
 import type { TripSearchResponseDTO, TripOptionsPageDTO, TripOptionDTO } from './types'
+import watch from './watch'
 
 type TripSearchPayload = {
   origin: string
@@ -33,7 +34,10 @@ export async function searchTrips(payload: TripSearchPayload) {
     body: JSON.stringify(payload)
   })
   if (!res.ok) throw new Error(await res.text())
-  return (await res.json()) as TripSearchResponseDTO
+  const body = (await res.json()) as TripSearchResponseDTO
+  // run watch comparison for client-driven refreshes
+  try { watch.processSearchResults(payload, body.options) } catch (e) { console.warn('watch process failed', e) }
+  return body
 }
 
 export async function getTripOptions(
@@ -51,6 +55,15 @@ export async function getTripOptions(
   const res = await fetch(`${BASE}/api/trips/${encodeURIComponent(searchId)}/options?${params.toString()}`)
   if (!res.ok) throw new Error(await res.text())
   const body = await res.json() as TripOptionsPageDTO
+  // TEMP DEBUG: log top-level keys and first option to help frontend parsing issues
+  try {
+    // eslint-disable-next-line no-console
+    console.log('getTripOptions: server response keys=', Object.keys(body))
+    // eslint-disable-next-line no-console
+    console.log('getTripOptions: first option=', (body as any).options && (body as any).options[0])
+  } catch (e) {
+    // ignore
+  }
   // Transform server response { options, totalOptions, ... } -> UI expected { content, totalElements }
   const transformed = {
     ...body,
@@ -101,6 +114,38 @@ export async function listSavedItems() {
   })
   if (!res.ok) throw new Error(await res.text())
   return (await res.json()) as any[]
+}
+
+// Saved offers API
+export async function saveOffer(payload: any) {
+  const res = await fetch(`${BASE}/api/saved/offers`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      // X-Client-Id should be provided by caller via stored client id
+      'X-Client-Id': getClientId()
+    },
+    body: JSON.stringify(payload)
+  })
+  if (!res.ok) throw new Error(await res.text())
+  return await res.text()
+}
+
+export async function listSavedOffers() {
+  const res = await fetch(`${BASE}/api/saved/offers`, {
+    headers: { 'X-Client-Id': getClientId() }
+  })
+  if (!res.ok) throw new Error(await res.text())
+  return (await res.json()) as any[]
+}
+
+export async function deleteSavedOffer(id: string) {
+  const res = await fetch(`${BASE}/api/saved/offers/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+    headers: { 'X-Client-Id': getClientId() }
+  })
+  if (!res.ok) throw new Error(await res.text())
+  return true
 }
 
 export async function deleteSavedItem(savedId: string) {

@@ -4,6 +4,8 @@ import { useQuery } from '@tanstack/react-query'
 import { getTripOptions } from '../lib/api'
 import TripCard from '../components/TripCard'
 import useSavedItems from '../hooks/useSavedItems'
+import { computeDealScores, getOptionId } from '../utils/dealScore'
+import { useMemo } from 'react'
 
 export default function ResultsPage() {
   const { searchId } = useParams()
@@ -19,6 +21,12 @@ export default function ResultsPage() {
     enabled: !!searchId
   })
 
+  // TEMP DEBUG: inspect the resolved data shape
+  if (typeof window !== 'undefined') {
+    // eslint-disable-next-line no-console
+    console.log('ResultsPage: resolved data=', data)
+  }
+
   if (!searchId) return <div>Missing searchId</div>
   // Normalize possible response shapes:
   // - paginated: { content: [...], totalElements }
@@ -31,6 +39,9 @@ export default function ResultsPage() {
   })()
 
   const totalElements = (data && ((data as any).totalElements ?? (data as any).totalOptions)) ?? options.length
+
+  // compute deal scores once per searchId
+  const scoreMap = useMemo(() => computeDealScores(options), [searchId, JSON.stringify(options.map(o => ({ id: o.id ?? o.tripOptionId, price: o.totalPrice })) )])
 
   return (
     <div>
@@ -56,9 +67,21 @@ export default function ResultsPage() {
 
           <div className="space-y-4">
             {options.length === 0 && !isLoading && <div className="text-sm text-gray-500">No options found</div>}
-            {options.map((opt: any) => (
-              <TripCard key={opt.id ?? opt.optionId ?? opt.tripOptionId} searchId={searchId} option={opt} onSave={(item) => saved.saveItem(item)} />
-            ))}
+            {options.map((opt: any) => {
+              const key = opt.id ?? opt.optionId ?? opt.tripOptionId ?? JSON.stringify(opt)
+              const info = scoreMap.get(opt.id ?? opt.tripOptionId ?? opt.optionId ?? key)
+              return (
+                <TripCard
+                  key={key}
+                  searchId={searchId}
+                  option={opt}
+                  onSave={(item) => saved.saveItem(item)}
+                  dealScore={info?.score ?? null}
+                  dealLabel={info?.label}
+                  percentileText={info?.percentileText}
+                />
+              )
+            })}
           </div>
 
       <div className="flex items-center justify-between mt-6">
