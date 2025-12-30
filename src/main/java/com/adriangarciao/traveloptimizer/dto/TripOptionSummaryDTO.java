@@ -24,4 +24,5 @@ public class TripOptionSummaryDTO implements Serializable {
     private LodgingSummaryDTO lodging;
     private double valueScore;
     private MlRecommendationDTO mlRecommendation;
+    private java.util.Map<String, Double> valueScoreBreakdown;
 }

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Example toolchains.xml for use under ~/.m2/toolchains.xml or CI toolchain config.
+     Do NOT commit local absolute paths. This file is an example showing how to point
+     Maven to a JDK 17 installation managed by toolchains.
+-->
+<toolchains>
+  <toolchain>
+    <type>jdk</type>
+    <provides>
+      <version>17</version>
+      <vendor>any</vendor>
+    </provides>
+    <configuration>
+      <!-- On your machine, set <jdkHome> to your JDK 17 install, e.g. C:/Program Files/Java/jdk-17 -->
+      <jdkHome>${env.JAVA_HOME}</jdkHome>
+    </configuration>
+  </toolchain>
+</toolchains>

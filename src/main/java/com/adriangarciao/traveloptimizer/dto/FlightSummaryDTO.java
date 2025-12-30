@@ -18,8 +18,11 @@ import java.util.List;
 @AllArgsConstructor
 public class FlightSummaryDTO implements Serializable {
     private String airline;
+    private String airlineCode;
+    private String airlineName;
     private String flightNumber;
     private int stops;
     private Duration duration;
+    private String durationText;
     private List<String> segments;
 }

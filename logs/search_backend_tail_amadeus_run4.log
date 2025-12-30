@@ -1,0 +1,78 @@
+﻿
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+
+ :: Spring Boot ::                (v4.0.0)
+
+2025-12-25 18:55:10.650 INFO  [] c.a.t.TraveloptimizerApplication - Starting TraveloptimizerApplication v0.0.1-SNAPSHOT using Java 17.0.17 with PID 2868 (C:\Users\garci\dev\traveloptimizer\target\traveloptimizer-0.0.1-SNAPSHOT.jar started by garci in C:\Users\garci\dev\traveloptimizer)
+2025-12-25 18:55:10.658 DEBUG [] c.a.t.TraveloptimizerApplication - Running with Spring Boot v4.0.0, Spring v7.0.1
+2025-12-25 18:55:10.660 INFO  [] c.a.t.TraveloptimizerApplication - The following 1 profile is active: "dev-no-security"
+2025-12-25 18:55:11.024 INFO  [] o.h.validator.internal.util.Version - HV000001: Hibernate Validator 9.0.1.Final
+2025-12-25 18:55:12.759 INFO  [] o.s.d.r.c.RepositoryConfigurationDelegate - Multiple Spring Data modules found, entering strict repository configuration mode
+2025-12-25 18:55:12.763 INFO  [] o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2025-12-25 18:55:13.049 INFO  [] o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 266 ms. Found 5 JPA repository interfaces.
+2025-12-25 18:55:13.096 INFO  [] o.s.d.r.c.RepositoryConfigurationDelegate - Multiple Spring Data modules found, entering strict repository configuration mode
+2025-12-25 18:55:13.099 INFO  [] o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data Redis repositories in DEFAULT mode.
+2025-12-25 18:55:13.124 INFO  [] o.s.d.r.c.RepositoryConfigurationExtensionSupport - Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adriangarciao.traveloptimizer.repository.FlightOptionRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2025-12-25 18:55:13.125 INFO  [] o.s.d.r.c.RepositoryConfigurationExtensionSupport - Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adriangarciao.traveloptimizer.repository.LodgingOptionRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2025-12-25 18:55:13.125 INFO  [] o.s.d.r.c.RepositoryConfigurationExtensionSupport - Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adriangarciao.traveloptimizer.repository.SavedTripOptionRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2025-12-25 18:55:13.125 INFO  [] o.s.d.r.c.RepositoryConfigurationExtensionSupport - Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adriangarciao.traveloptimizer.repository.TripOptionRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2025-12-25 18:55:13.125 INFO  [] o.s.d.r.c.RepositoryConfigurationExtensionSupport - Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.adriangarciao.traveloptimizer.repository.TripSearchRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2025-12-25 18:55:13.127 INFO  [] o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 9 ms. Found 0 Redis repository interfaces.
+2025-12-25 18:55:15.283 INFO  [] o.s.boot.tomcat.TomcatWebServer - Tomcat initialized with port 8080 (http)
+2025-12-25 18:55:15.306 INFO  [] o.a.coyote.http11.Http11NioProtocol - Initializing ProtocolHandler ["http-nio-8080"]
+2025-12-25 18:55:15.310 INFO  [] o.a.catalina.core.StandardService - Starting service [Tomcat]
+2025-12-25 18:55:15.311 INFO  [] o.a.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/11.0.14]
+2025-12-25 18:55:15.387 INFO  [] o.s.b.w.c.s.WebApplicationContextInitializer - Root WebApplicationContext: initialization completed in 4636 ms
+2025-12-25 18:55:15.914 DEBUG [] c.a.t.c.RequestCorrelationFilter - Filter 'requestCorrelationFilter' configured for use
+2025-12-25 18:55:16.111 INFO  [] o.h.jpa.internal.util.LogHelper - HHH000204: Processing PersistenceUnitInfo [name: default]
+2025-12-25 18:55:16.192 INFO  [] org.hibernate.Version - HHH000412: Hibernate ORM core version 7.1.8.Final
+2025-12-25 18:55:17.008 INFO  [] o.s.o.j.p.SpringPersistenceUnitInfo - No LoadTimeWeaver setup: ignoring JPA class transformer
+2025-12-25 18:55:17.051 INFO  [] com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Starting...
+2025-12-25 18:55:17.314 INFO  [] com.zaxxer.hikari.pool.HikariPool - HikariPool-1 - Added connection conn0: url=jdbc:h2:mem:3dd69f65-5ba8-48a0-9338-48ddaaf80401 user=SA
+2025-12-25 18:55:17.318 INFO  [] com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Start completed.
+2025-12-25 18:55:17.386 INFO  [] o.hibernate.orm.connections.pooling - HHH10001005: Database info:
+	Database JDBC URL [jdbc:h2:mem:3dd69f65-5ba8-48a0-9338-48ddaaf80401]
+	Database driver: H2 JDBC Driver
+	Database dialect: H2Dialect
+	Database version: 2.4.240
+	Default catalog/schema: 3DD69F65-5BA8-48A0-9338-48DDAAF80401/PUBLIC
+	Autocommit mode: undefined/unknown
+	Isolation level: READ_COMMITTED [default READ_COMMITTED]
+	JDBC fetch size: 100
+	Pool: DatasourceConnectionProviderImpl
+	Minimum pool size: undefined/unknown
+	Maximum pool size: undefined/unknown
+2025-12-25 18:55:19.396 INFO  [] o.h.e.t.j.p.i.JtaPlatformInitiator - HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2025-12-25 18:55:19.493 INFO  [] o.s.o.j.LocalContainerEntityManagerFactoryBean - Initialized JPA EntityManagerFactory for persistence unit 'default'
+2025-12-25 18:55:20.755 INFO  [] o.s.d.j.r.q.QueryEnhancerFactories - Hibernate is in classpath; If applicable, HQL parser will be used.
+2025-12-25 18:55:21.548 WARN  [] o.s.b.j.a.JpaBaseConfiguration$JpaWebConfiguration - spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+2025-12-25 18:55:21.977 WARN  [] o.s.b.s.a.UserDetailsServiceAutoConfiguration - 
+
+Using generated security password: b17c536e-a1dc-407e-ac52-9930487fe726
+
+This generated password is for development use only. Your security configuration must be updated before running your application in production.
+
+2025-12-25 18:55:22.000 INFO  [] o.s.s.c.a.a.c.InitializeUserDetailsBeanManagerConfigurer$InitializeUserDetailsManagerConfigurer - Global AuthenticationManager configured with UserDetailsService bean with name inMemoryUserDetailsManager
+2025-12-25 18:55:22.259 INFO  [] c.a.t.config.DevSecurityConfig - Activating dev-no-security SecurityFilterChain: permitting all requests
+2025-12-25 18:55:22.437 INFO  [] c.a.t.config.DevSecurityConfig - Dev web security customizer: ignoring static and API endpoints
+2025-12-25 18:55:22.456 INFO  [] c.a.t.config.FallbackCacheConfig - No Redis CacheManager present; using in-memory fallback CacheManager for local dev.
+2025-12-25 18:55:25.153 WARN  [] o.s.s.c.a.web.builders.WebSecurity - You are asking Spring Security to ignore PathPattern [/api/**]. This is not recommended -- please use permitAll via HttpSecurity#authorizeHttpRequests instead.
+2025-12-25 18:55:25.154 WARN  [] o.s.s.c.a.web.builders.WebSecurity - You are asking Spring Security to ignore PathPattern [/actuator/**]. This is not recommended -- please use permitAll via HttpSecurity#authorizeHttpRequests instead.
+2025-12-25 18:55:25.154 WARN  [] o.s.s.c.a.web.builders.WebSecurity - You are asking Spring Security to ignore PathPattern [/static/**]. This is not recommended -- please use permitAll via HttpSecurity#authorizeHttpRequests instead.
+2025-12-25 18:55:25.273 INFO  [] o.s.b.a.e.web.EndpointLinksResolver - Exposing 1 endpoint beneath base path '/actuator'
+2025-12-25 18:55:25.427 INFO  [] o.a.coyote.http11.Http11NioProtocol - Starting ProtocolHandler ["http-nio-8080"]
+2025-12-25 18:55:25.454 INFO  [] o.s.boot.tomcat.TomcatWebServer - Tomcat started on port 8080 (http) with context path '/'
+2025-12-25 18:55:25.484 INFO  [] c.a.t.TraveloptimizerApplication - Started TraveloptimizerApplication in 15.979 seconds (process running for 17.0)
+2025-12-25 18:55:25.751 INFO  [] o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring DispatcherServlet 'dispatcherServlet'
+2025-12-25 18:55:25.751 INFO  [] o.s.web.servlet.DispatcherServlet - Initializing Servlet 'dispatcherServlet'
+2025-12-25 18:55:25.755 INFO  [] o.s.web.servlet.DispatcherServlet - Completed initialization in 2 ms
+2025-12-25 18:55:26.347 INFO  [] c.a.t.config.RedisHealthLogger - Redis health check successful: PONG
+2025-12-25 18:55:30.008 INFO  [ae03341a-24c8-49ff-8237-14b7ccaae441] c.a.t.s.impl.TripSearchServiceImpl - Persisting TripSearch for JFK -> LAX
+2025-12-25 18:55:31.539 INFO  [] c.a.t.p.i.AmadeusFlightSearchProvider - Amadeus token acquired (timeoutMs=10000ms) for origin=JFK dest=LAX
+2025-12-25 18:55:31.983 WARN  [] c.a.t.p.i.AmadeusFlightSearchProvider - Amadeus flight search failed (timeoutMs=10000ms origin=JFK dest=LAX): BadRequest status=400 responseBodyLen=138
+2025-12-25 18:55:31.983 WARN  [] c.a.t.s.impl.TripSearchServiceImpl - Flight provider failed/timeout: java.util.concurrent.CompletionException: org.springframework.web.server.ResponseStatusException: 502 BAD_GATEWAY "Amadeus provider error"

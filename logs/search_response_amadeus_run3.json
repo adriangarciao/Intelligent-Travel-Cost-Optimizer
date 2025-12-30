@@ -1,0 +1,216 @@
+﻿{
+    "searchId":  "cad91807-b8a4-471c-a55c-c75e5d65e1c9",
+    "origin":  "JFK",
+    "destination":  "LAX",
+    "currency":  "USD",
+    "options":  [
+                    {
+                        "tripOptionId":  "9059fbb1-144c-4dd6-bb9b-1fc49d6ccac5",
+                        "totalPrice":  660.04,
+                        "currency":  "USD",
+                        "flight":  {
+                                       "airline":  "F9",
+                                       "flightNumber":  null,
+                                       "stops":  1,
+                                       "duration":  "PT4H24M",
+                                       "segments":  [
+                                                        "JFK-\u003eLAX"
+                                                    ]
+                                   },
+                        "lodging":  {
+                                        "hotelName":  "Comfort Suites",
+                                        "lodgingType":  "Hotel",
+                                        "rating":  4.5,
+                                        "pricePerNight":  188,
+                                        "nights":  3
+                                    },
+                        "valueScore":  0.43006603470346283,
+                        "mlRecommendation":  null
+                    },
+                    {
+                        "tripOptionId":  "e34e91b3-17b7-4964-8bde-aeaa4049d2c5",
+                        "totalPrice":  660.04,
+                        "currency":  "USD",
+                        "flight":  {
+                                       "airline":  "F9",
+                                       "flightNumber":  null,
+                                       "stops":  1,
+                                       "duration":  "PT4H40M",
+                                       "segments":  [
+                                                        "JFK-\u003eLAX"
+                                                    ]
+                                   },
+                        "lodging":  {
+                                        "hotelName":  "Comfort Suites",
+                                        "lodgingType":  "Hotel",
+                                        "rating":  4.5,
+                                        "pricePerNight":  188,
+                                        "nights":  3
+                                    },
+                        "valueScore":  0.43006603470346283,
+                        "mlRecommendation":  null
+                    },
+                    {
+                        "tripOptionId":  "f32ac98f-5e82-442d-876d-29ab58e3608a",
+                        "totalPrice":  660.04,
+                        "currency":  "USD",
+                        "flight":  {
+                                       "airline":  "F9",
+                                       "flightNumber":  null,
+                                       "stops":  1,
+                                       "duration":  "PT6H13M",
+                                       "segments":  [
+                                                        "JFK-\u003eLAX"
+                                                    ]
+                                   },
+                        "lodging":  {
+                                        "hotelName":  "Comfort Suites",
+                                        "lodgingType":  "Hotel",
+                                        "rating":  4.5,
+                                        "pricePerNight":  188,
+                                        "nights":  3
+                                    },
+                        "valueScore":  0.43006603470346283,
+                        "mlRecommendation":  null
+                    },
+                    {
+                        "tripOptionId":  "33efa466-75e9-4556-bccc-1d8cae92ba3d",
+                        "totalPrice":  570.04,
+                        "currency":  "USD",
+                        "flight":  {
+                                       "airline":  "F9",
+                                       "flightNumber":  null,
+                                       "stops":  1,
+                                       "duration":  "PT4H24M",
+                                       "segments":  [
+                                                        "JFK-\u003eLAX"
+                                                    ]
+                                   },
+                        "lodging":  {
+                                        "hotelName":  "Demo Hotel",
+                                        "lodgingType":  "Hotel",
+                                        "rating":  4.2,
+                                        "pricePerNight":  158,
+                                        "nights":  3
+                                    },
+                        "valueScore":  0.41366088150873,
+                        "mlRecommendation":  null
+                    },
+                    {
+                        "tripOptionId":  "a736e93a-57ee-442a-8b61-4202bac158dc",
+                        "totalPrice":  570.04,
+                        "currency":  "USD",
+                        "flight":  {
+                                       "airline":  "F9",
+                                       "flightNumber":  null,
+                                       "stops":  1,
+                                       "duration":  "PT4H40M",
+                                       "segments":  [
+                                                        "JFK-\u003eLAX"
+                                                    ]
+                                   },
+                        "lodging":  {
+                                        "hotelName":  "Demo Hotel",
+                                        "lodgingType":  "Hotel",
+                                        "rating":  4.2,
+                                        "pricePerNight":  158,
+                                        "nights":  3
+                                    },
+                        "valueScore":  0.41366088150873,
+                        "mlRecommendation":  null
+                    },
+                    {
+                        "tripOptionId":  "4fe0a850-e381-4f0a-8cd4-961e8a258060",
+                        "totalPrice":  570.04,
+                        "currency":  "USD",
+                        "flight":  {
+                                       "airline":  "F9",
+                                       "flightNumber":  null,
+                                       "stops":  1,
+                                       "duration":  "PT6H13M",
+                                       "segments":  [
+                                                        "JFK-\u003eLAX"
+                                                    ]
+                                   },
+                        "lodging":  {
+                                        "hotelName":  "Demo Hotel",
+                                        "lodgingType":  "Hotel",
+                                        "rating":  4.2,
+                                        "pricePerNight":  158,
+                                        "nights":  3
+                                    },
+                        "valueScore":  0.41366088150873,
+                        "mlRecommendation":  null
+                    },
+                    {
+                        "tripOptionId":  "f45957e1-33ae-4442-9eb6-7fc60aaef768",
+                        "totalPrice":  450.04,
+                        "currency":  "USD",
+                        "flight":  {
+                                       "airline":  "F9",
+                                       "flightNumber":  null,
+                                       "stops":  1,
+                                       "duration":  "PT4H24M",
+                                       "segments":  [
+                                                        "JFK-\u003eLAX"
+                                                    ]
+                                   },
+                        "lodging":  {
+                                        "hotelName":  "Budget Inn",
+                                        "lodgingType":  "Hotel",
+                                        "rating":  3.6,
+                                        "pricePerNight":  118,
+                                        "nights":  3
+                                    },
+                        "valueScore":  0.38036972129463015,
+                        "mlRecommendation":  null
+                    },
+                    {
+                        "tripOptionId":  "992db48c-3a94-4bac-9ad6-bf14114d6740",
+                        "totalPrice":  450.04,
+                        "currency":  "USD",
+                        "flight":  {
+                                       "airline":  "F9",
+                                       "flightNumber":  null,
+                                       "stops":  1,
+                                       "duration":  "PT4H40M",
+                                       "segments":  [
+                                                        "JFK-\u003eLAX"
+                                                    ]
+                                   },
+                        "lodging":  {
+                                        "hotelName":  "Budget Inn",
+                                        "lodgingType":  "Hotel",
+                                        "rating":  3.6,
+                                        "pricePerNight":  118,
+                                        "nights":  3
+                                    },
+                        "valueScore":  0.38036972129463015,
+                        "mlRecommendation":  null
+                    },
+                    {
+                        "tripOptionId":  "f4af95b0-2ef7-40dc-beb7-70a83f9b7505",
+                        "totalPrice":  450.04,
+                        "currency":  "USD",
+                        "flight":  {
+                                       "airline":  "F9",
+                                       "flightNumber":  null,
+                                       "stops":  1,
+                                       "duration":  "PT6H13M",
+                                       "segments":  [
+                                                        "JFK-\u003eLAX"
+                                                    ]
+                                   },
+                        "lodging":  {
+                                        "hotelName":  "Budget Inn",
+                                        "lodgingType":  "Hotel",
+                                        "rating":  3.6,
+                                        "pricePerNight":  118,
+                                        "nights":  3
+                                    },
+                        "valueScore":  0.38036972129463015,
+                        "mlRecommendation":  null
+                    }
+                ],
+    "mlBestDateWindow":  null
+}

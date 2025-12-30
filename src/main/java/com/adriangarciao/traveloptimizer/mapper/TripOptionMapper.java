@@ -18,14 +18,30 @@ public class TripOptionMapper {
         dto.setTotalPrice(entity.getTotalPrice());
         dto.setCurrency(entity.getCurrency());
         dto.setValueScore(entity.getValueScore());
+        // optional DEV-only breakdown
+        boolean debugBreakdown = Boolean.parseBoolean(System.getProperty("app.debug.valueScoreBreakdown", System.getenv().getOrDefault("APP_DEBUG_VALUE_SCORE_BREAKDOWN","false")));
+        if (debugBreakdown && entity.getValueScoreBreakdown() != null) {
+            dto.setValueScoreBreakdown(entity.getValueScoreBreakdown());
+        }
         // map flight option; provide fallback object if missing
         if (entity.getFlightOption() != null) {
             FlightOption fOpt = entity.getFlightOption();
             FlightSummaryDTO f = new FlightSummaryDTO();
             f.setAirline(fOpt.getAirline());
+            f.setAirlineCode(fOpt.getAirlineCode());
+            f.setAirlineName(fOpt.getAirlineName());
             f.setFlightNumber(fOpt.getFlightNumber());
             f.setStops(fOpt.getStops());
             f.setDuration(fOpt.getDuration());
+            // human-friendly duration text
+            if (fOpt.getDuration() != null) {
+                long mins = fOpt.getDuration().toMinutes();
+                long hrs = mins / 60;
+                long rem = mins % 60;
+                f.setDurationText(hrs > 0 ? String.format("%dh %dm", hrs, rem) : String.format("%dm", rem));
+            } else {
+                f.setDurationText(null);
+            }
             f.setSegments(fOpt.getSegments());
             dto.setFlight(f);
         } else {
@@ -73,6 +89,8 @@ public class TripOptionMapper {
             FlightSummaryDTO fd = dto.getFlight();
             FlightOption f = new FlightOption();
             f.setAirline(fd.getAirline());
+            f.setAirlineCode(fd.getAirlineCode());
+            f.setAirlineName(fd.getAirlineName());
             f.setFlightNumber(fd.getFlightNumber());
             f.setStops(fd.getStops());
             f.setDuration(fd.getDuration());
@@ -98,9 +116,19 @@ public class TripOptionMapper {
         if (flight == null) return null;
         FlightSummaryDTO dto = new FlightSummaryDTO();
         dto.setAirline(flight.getAirline());
+        dto.setAirlineCode(flight.getAirlineCode());
+        dto.setAirlineName(flight.getAirlineName());
         dto.setFlightNumber(flight.getFlightNumber());
         dto.setStops(flight.getStops());
         dto.setDuration(flight.getDuration());
+        if (flight.getDuration() != null) {
+            long mins = flight.getDuration().toMinutes();
+            long hrs = mins / 60;
+            long rem = mins % 60;
+            dto.setDurationText(hrs > 0 ? String.format("%dh %dm", hrs, rem) : String.format("%dm", rem));
+        } else {
+            dto.setDurationText(null);
+        }
         dto.setSegments(flight.getSegments());
         return dto;
     }
@@ -109,6 +137,8 @@ public class TripOptionMapper {
         if (dto == null) return null;
         FlightOption f = new FlightOption();
         f.setAirline(dto.getAirline());
+        f.setAirlineCode(dto.getAirlineCode());
+        f.setAirlineName(dto.getAirlineName());
         f.setFlightNumber(dto.getFlightNumber());
         f.setStops(dto.getStops());
         f.setDuration(dto.getDuration());

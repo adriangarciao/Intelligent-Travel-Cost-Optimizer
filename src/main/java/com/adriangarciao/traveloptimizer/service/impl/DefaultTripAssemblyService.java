@@ -40,13 +40,16 @@ public class DefaultTripAssemblyService implements TripAssemblyService {
         for (FlightOffer f : topFlights) {
             for (LodgingOffer l : topLodgings) {
                 TripOption opt = TripOption.builder()
-                        .flightOption(FlightOption.builder()
-                                .airline(f.getAirline())
-                                .stops(f.getStops())
-                                .duration(Duration.ofMinutes(f.getDurationMinutes()))
-                                .segments(List.of(request.getOrigin() + "->" + request.getDestination()))
-                                .price(f.getPrice())
-                                .build())
+                    .flightOption(FlightOption.builder()
+                        .airline(f.getAirlineName() != null ? f.getAirlineName() : f.getAirline())
+                        .airlineCode(f.getAirlineCode())
+                        .airlineName(f.getAirlineName())
+                        .flightNumber(f.getFlightNumber())
+                        .stops(f.getStops())
+                        .duration(Duration.ofMinutes(f.getDurationMinutes()))
+                        .segments(f.getSegments() != null && !f.getSegments().isEmpty() ? f.getSegments() : List.of(request.getOrigin() + "->" + request.getDestination()))
+                        .price(f.getPrice())
+                        .build())
                         .lodgingOption(LodgingOption.builder()
                                 .hotelName(l.getName())
                                 .lodgingType("Hotel")
@@ -56,13 +59,48 @@ public class DefaultTripAssemblyService implements TripAssemblyService {
                                 .build())
                         .currency(f.getCurrency() != null ? f.getCurrency() : l.getCurrency())
                         .totalPrice(f.getPrice().add(l.getTotalPrice()))
-                        .valueScore(computeValueScore(f, l))
+                        // score will be computed after building all options to allow normalization
+                        .valueScore(0.0)
                         .build();
 
                 options.add(opt);
                 if (options.size() >= 9) break; // cap
             }
             if (options.size() >= 9) break;
+        }
+
+        // Compute normalized scoring across assembled options
+        if (!options.isEmpty()) {
+            double minPrice = options.stream().mapToDouble(o -> o.getTotalPrice().doubleValue()).min().orElse(0);
+            double maxPrice = options.stream().mapToDouble(o -> o.getTotalPrice().doubleValue()).max().orElse(minPrice);
+            long minDur = options.stream().mapToLong(o -> o.getFlightOption() != null && o.getFlightOption().getDuration() != null ? o.getFlightOption().getDuration().toMinutes() : Long.MAX_VALUE).min().orElse(0L);
+            long maxDur = options.stream().mapToLong(o -> o.getFlightOption() != null && o.getFlightOption().getDuration() != null ? o.getFlightOption().getDuration().toMinutes() : 0).max().orElse(minDur);
+            int maxStops = options.stream().mapToInt(o -> o.getFlightOption() != null ? o.getFlightOption().getStops() : 0).max().orElse(0);
+
+            for (TripOption o : options) {
+                double price = o.getTotalPrice().doubleValue();
+                double dur = (o.getFlightOption() != null && o.getFlightOption().getDuration() != null) ? o.getFlightOption().getDuration().toMinutes() : (double) maxDur;
+                double stops = (o.getFlightOption() != null) ? o.getFlightOption().getStops() : 0;
+
+                double normPrice = (maxPrice - minPrice) != 0 ? (price - minPrice) / (maxPrice - minPrice) : 0.0;
+                double normDuration = (maxDur - minDur) != 0 ? (dur - (double) minDur) / ((double) (maxDur - minDur)) : 0.0;
+                double normStops = (maxStops != 0) ? (stops / (double) maxStops) : 0.0;
+
+                double priceComp = 0.55 * (1.0 - normPrice);
+                double durComp = 0.25 * (1.0 - normDuration);
+                double stopsComp = 0.20 * (1.0 - normStops);
+                double score = priceComp + durComp + stopsComp;
+                score = Math.max(0.0, Math.min(1.0, score));
+                double rounded = Math.round(score * 1000.0) / 1000.0;
+
+                java.util.Map<String, Double> breakdown = new java.util.LinkedHashMap<>();
+                breakdown.put("priceComponent", Math.round(priceComp*1000.0)/1000.0);
+                breakdown.put("durationComponent", Math.round(durComp*1000.0)/1000.0);
+                breakdown.put("stopsComponent", Math.round(stopsComp*1000.0)/1000.0);
+
+                o.setValueScore(rounded);
+                o.setValueScoreBreakdown(breakdown);
+            }
         }
 
         return options;

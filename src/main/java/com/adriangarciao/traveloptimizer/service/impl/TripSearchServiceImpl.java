@@ -49,6 +49,12 @@ public class TripSearchServiceImpl implements TripSearchService {
                 @org.springframework.beans.factory.annotation.Value("${ml.enabled:true}")
                 private boolean mlEnabled = true;
 
+                @org.springframework.beans.factory.annotation.Value("${travel.providers.flights:}")
+                private String travelProvidersFlights;
+
+                @org.springframework.beans.factory.annotation.Value("${providers.flight-timeout-seconds:10}")
+                private long flightProviderTimeoutSeconds = 10;
+
     /**
      * No-arg constructor kept for simple unit tests that instantiate the
      * implementation directly. Repositories/mappers will be null in that case
@@ -105,6 +111,9 @@ public class TripSearchServiceImpl implements TripSearchService {
         @Override
                 @org.springframework.cache.annotation.Cacheable(value = "tripSearchCache", keyGenerator = "tripSearchKeyGenerator", unless = "#result == null")
         public TripSearchResponseDTO searchTrips(TripSearchRequestDTO request, Integer limit, String sortBy, String sortDir) {
+                log.info("Search request start: origin={} dest={} travel.providers.flights={} providerBean={}", request.getOrigin(), request.getDestination(), travelProvidersFlights, (flightSearchProvider != null ? flightSearchProvider.getClass().getName() : "null"));
+                boolean isAmadeus = (flightSearchProvider != null) && flightSearchProvider.getClass().getName().contains("AmadeusFlightSearchProvider");
+                log.info("Using Amadeus provider? {}", isAmadeus);
         // If repositories/mappers are not available (unit tests), return a lightweight dummy response
         if (tripSearchRepository == null || tripSearchMapper == null) {
             TripOptionSummaryDTO option = TripOptionSummaryDTO.builder()
@@ -172,21 +181,21 @@ public class TripSearchServiceImpl implements TripSearchService {
                 TripSearch toSave = tripSearchMapper.toEntity(request);
 
                 // Run flight and lodging searches in parallel with timeouts and graceful fallbacks
-                java.util.concurrent.CompletableFuture<List<com.adriangarciao.traveloptimizer.provider.FlightOffer>> flightsFuture = null;
+                java.util.concurrent.CompletableFuture<com.adriangarciao.traveloptimizer.provider.FlightSearchResult> flightsFuture = null;
                 java.util.concurrent.CompletableFuture<List<com.adriangarciao.traveloptimizer.provider.LodgingOffer>> lodgingsFuture = null;
 
                 if (flightSearchProvider != null) {
                         flightsFuture = java.util.concurrent.CompletableFuture.supplyAsync(() -> flightSearchProvider.searchFlights(request), executor)
-                                        .orTimeout(3, java.util.concurrent.TimeUnit.SECONDS)
+                                        .orTimeout(this.flightProviderTimeoutSeconds, java.util.concurrent.TimeUnit.SECONDS)
                                         .exceptionally(t -> {
                                                 log.warn("Flight provider failed/timeout: {}", t.toString());
-                                                return List.of();
+                                                return com.adriangarciao.traveloptimizer.provider.FlightSearchResult.failure(com.adriangarciao.traveloptimizer.provider.ProviderStatus.TIMEOUT, "Provider future failed");
                                         });
                 }
 
                 if (lodgingSearchProvider != null) {
                         lodgingsFuture = java.util.concurrent.CompletableFuture.supplyAsync(() -> lodgingSearchProvider.searchLodging(request), executor)
-                                        .orTimeout(3, java.util.concurrent.TimeUnit.SECONDS)
+                                        .orTimeout(this.flightProviderTimeoutSeconds, java.util.concurrent.TimeUnit.SECONDS)
                                         .exceptionally(t -> {
                                                 log.warn("Lodging provider failed/timeout: {}", t.toString());
                                                 return List.of();
@@ -195,17 +204,30 @@ public class TripSearchServiceImpl implements TripSearchService {
 
                 List<com.adriangarciao.traveloptimizer.provider.FlightOffer> flights = List.of();
                 List<com.adriangarciao.traveloptimizer.provider.LodgingOffer> lodgings = List.of();
+                com.adriangarciao.traveloptimizer.provider.FlightSearchResult flightsResult = null;
                 try {
-                        if (flightsFuture != null) flights = flightsFuture.get();
+                        if (flightsFuture != null) flightsResult = flightsFuture.get();
                 } catch (Throwable t) {
                         log.warn("Failed to get flights: {}", t.toString());
-                        flights = List.of();
+                        flightsResult = com.adriangarciao.traveloptimizer.provider.FlightSearchResult.failure(com.adriangarciao.traveloptimizer.provider.ProviderStatus.TIMEOUT, "Failed to execute flight provider");
                 }
                 try {
                         if (lodgingsFuture != null) lodgings = lodgingsFuture.get();
                 } catch (Throwable t) {
                         log.warn("Failed to get lodgings: {}", t.toString());
                         lodgings = List.of();
+                }
+
+                // Interpret flight provider result
+                if (flightsResult != null) {
+                        if (flightsResult.getStatus() == com.adriangarciao.traveloptimizer.provider.ProviderStatus.OK) {
+                                flights = flightsResult.getOffers();
+                        } else if (flightsResult.getStatus() == com.adriangarciao.traveloptimizer.provider.ProviderStatus.NO_RESULTS) {
+                                flights = List.of();
+                        } else {
+                                // non-OK status: keep flights empty but record provider metadata on response later
+                                flights = List.of();
+                        }
                 }
 
                 List<TripOption> assembled = Collections.emptyList();
@@ -235,8 +257,35 @@ public class TripSearchServiceImpl implements TripSearchService {
                 String safeSortBy = (sortBy == null || sortBy.isBlank()) ? "valueScore" : sortBy;
                 Sort.Direction dir = ("asc".equalsIgnoreCase(sortDir)) ? Sort.Direction.ASC : Sort.Direction.DESC;
                 Page<TripOption> optionsPage = tripOptionRepository.findByTripSearchId(saved.getId(), PageRequest.of(0, safeLimit, Sort.by(dir, safeSortBy)));
-                List<TripOptionSummaryDTO> limited = optionsPage.getContent().stream().map(tripOptionMapper::toDto).collect(Collectors.toList());
-                dto.setOptions(limited);
+                                List<TripOptionSummaryDTO> limited = optionsPage.getContent().stream().map(tripOptionMapper::toDto).collect(Collectors.toList());
+
+                                // Preserve transient valueScoreBreakdown computed during assembly.
+                                // The assembled list contains the transient breakdowns but they are not persisted.
+                                // Build a small lookup by flightNumber + totalPrice to re-attach breakdowns to the DTOs.
+                                java.util.Map<String, java.util.Map<String, Double>> breakdownMap = new java.util.HashMap<>();
+                                for (TripOption a : assembled) {
+                                        if (a.getValueScoreBreakdown() != null && a.getFlightOption() != null) {
+                                                String key = (a.getFlightOption().getFlightNumber() == null ? "" : a.getFlightOption().getFlightNumber()) + "|" + a.getTotalPrice().doubleValue();
+                                                breakdownMap.put(key, a.getValueScoreBreakdown());
+                                        }
+                                }
+                                for (TripOptionSummaryDTO dtoOpt : limited) {
+                                        String key = (dtoOpt.getFlight() != null && dtoOpt.getFlight().getFlightNumber() != null ? dtoOpt.getFlight().getFlightNumber() : "") + "|" + dtoOpt.getTotalPrice();
+                                        if (breakdownMap.containsKey(key)) {
+                                                dtoOpt.setValueScoreBreakdown(breakdownMap.get(key));
+                                        }
+                                }
+
+                                dto.setOptions(limited);
+
+                // Surface provider metadata to the API response so frontend can distinguish no-results vs errors
+                if (flightsResult != null) {
+                        dto.setFlightProviderStatus(flightsResult.getStatus() != null ? flightsResult.getStatus().name() : null);
+                        dto.setFlightProviderMessage(flightsResult.getMessage());
+                } else {
+                        dto.setFlightProviderStatus(null);
+                        dto.setFlightProviderMessage(null);
+                }
 
                 // Enrich with ML predictions if enabled; run with limited parallelism and simple retry
                 if (mlEnabled && mlClient != null) {

@@ -191,7 +191,6 @@
 				<version>3.10.1</version>
 				<configuration>
 					<release>${java.version}</release>
-					<fork>true</fork>
 					<annotationProcessorPaths>
 						<path>
 							<groupId>org.projectlombok</groupId>
@@ -199,6 +198,50 @@
 							<version>1.18.32</version>
 						</path>
 					</annotationProcessorPaths>
+				</configuration>
+			</plugin>
+
+			<!-- Enforcer: fail early if wrong Java or Maven versions are used -->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-enforcer-plugin</artifactId>
+				<version>3.1.0</version>
+				<executions>
+					<execution>
+						<id>enforce-java-and-maven</id>
+						<goals>
+							<goal>enforce</goal>
+						</goals>
+						<configuration>
+							<rules>
+								<requireJavaVersion>
+									<!-- accepts any 17.x runtime -->
+									<version>17</version>
+									<message>Java 17 is required to build this project. Please use JDK 17.</message>
+								</requireJavaVersion>
+								<requireMavenVersion>
+									<version>[3.9,)</version>
+									<message>Maven 3.9 or newer is required.</message>
+								</requireMavenVersion>
+							</rules>
+							<fail>true</fail>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+
+			<!-- Optional: toolchains plugin to pick a JDK 17 toolchain when configured on the developer/CI machine -->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-toolchains-plugin</artifactId>
+				<version>3.1.0</version>
+				<!-- Declared for teams that want to configure a ~/.m2/toolchains.xml; no automatic execution here. -->
+				<configuration>
+					<toolchains>
+						<jdk>
+							<version>17</version>
+						</jdk>
+					</toolchains>
 				</configuration>
 			</plugin>
 
