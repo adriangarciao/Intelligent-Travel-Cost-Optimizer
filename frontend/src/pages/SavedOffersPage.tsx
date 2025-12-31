@@ -6,6 +6,7 @@ import watch from '../lib/watch'
 import { computeDealScores, getOptionId } from '../utils/dealScore'
 import { useQueryClient } from '@tanstack/react-query'
 import NotificationsPanel from '../components/NotificationsPanel'
+import { downloadJson, downloadCsv } from '../utils/shareExport'
 
 export default function SavedOffersPage() {
   const [offers, setOffers] = useState<any[]>([])
@@ -140,6 +141,30 @@ export default function SavedOffersPage() {
   return (
     <div>
       <h2 className="text-xl font-semibold mb-4">Saved Offers</h2>
+      <div className="mb-3">
+        <button className="px-3 py-1 border rounded mr-2" onClick={() => {
+          const filename = `traveloptimizer-saved-${new Date().toISOString().replace(/[:.]/g,'-')}.json`
+          downloadJson(filename, { offers, createdAt: new Date().toISOString() })
+        }}>Export Saved JSON</button>
+        <button className="px-3 py-1 border rounded" onClick={() => {
+          const filename = `traveloptimizer-saved-${new Date().toISOString().replace(/[:.]/g,'-')}.csv`
+          const rows = offers.map((o: any) => ({
+            tripOptionId: o.tripOptionId || o.id,
+            totalPrice: o.totalPrice,
+            currency: o.currency,
+            valueScore: o.valueScore || (o.option && o.option.valueScore) || 0,
+            airlineName: o.airlineName || (o.option && o.option.flight && o.option.flight.airlineName) || '',
+            airlineCode: o.airlineCode || (o.option && o.option.flight && o.option.flight.airlineCode) || '',
+            flightNumber: o.flightNumber || (o.option && o.option.flight && o.option.flight.flightNumber) || '',
+            stops: (() => {
+              try { const segs = o.segments ? JSON.parse(o.segments) : (o.option && o.option.flight && o.option.flight.segments) || []; return Array.isArray(segs) ? Math.max(0, segs.length - 1) : '' } catch (e) { return '' }
+            })(),
+            durationText: o.durationText || (o.option && o.option.flight && o.option.flight.durationText) || '',
+            segments: (() => { try { const segs = o.segments ? JSON.parse(o.segments) : (o.option && o.option.flight && o.option.flight.segments) || []; return Array.isArray(segs) ? segs.join('|') : '' } catch (e) { return '' } })()
+          }))
+          downloadCsv(filename, rows, ['tripOptionId','totalPrice','currency','valueScore','airlineName','airlineCode','flightNumber','stops','durationText','segments'])
+        }}>Export Saved CSV</button>
+      </div>
       {offers.length === 0 && <div className="text-sm text-gray-500">No saved offers</div>}
       <div className="space-y-3">
         {offers.map(o => {
