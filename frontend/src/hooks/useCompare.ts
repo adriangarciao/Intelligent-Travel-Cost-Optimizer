@@ -1,146 +1,120 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 
-const OFFER_IDS_KEY = 'traveloptimizer.compare.offerIds'
-const SNAPSHOT_KEY = 'traveloptimizer.compare.snapshots'
+const STORAGE_IDS = 'traveloptimizer.compare.offerIds'
+const STORAGE_SNAPS = 'traveloptimizer.compare.snapshots'
+const BROADCAST_EVENT = 'traveloptimizer.compare:changed'
 
-type Snapshot = {
-  id: string
-  tripOptionId?: string
-  totalPrice?: number
-  currency?: string
-  valueScore?: number
-  flight?: any
-  // additional fields as needed
+function readStorage() {
+	try {
+		const idsRaw = localStorage.getItem(STORAGE_IDS)
+		const snapsRaw = localStorage.getItem(STORAGE_SNAPS)
+		const ids = idsRaw ? JSON.parse(idsRaw) : []
+		const snapshots = snapsRaw ? JSON.parse(snapsRaw) : {}
+		return { ids, snapshots }
+	} catch (err) {
+		return { ids: [], snapshots: {} }
+	}
 }
 
-function readIds(): string[] {
-  try {
-    const raw = localStorage.getItem(OFFER_IDS_KEY)
-    if (!raw) return []
-    return JSON.parse(raw)
-  } catch (e) {
-    return []
-  }
+function writeStorage(ids: string[], snapshots: Record<string, any>) {
+	localStorage.setItem(STORAGE_IDS, JSON.stringify(ids))
+	localStorage.setItem(STORAGE_SNAPS, JSON.stringify(snapshots))
 }
 
-function writeIds(ids: string[]) {
-  localStorage.setItem(OFFER_IDS_KEY, JSON.stringify(ids))
-}
-
-function readSnapshots(): Record<string, Snapshot> {
-  try {
-    const raw = localStorage.getItem(SNAPSHOT_KEY)
-    if (!raw) return {}
-    return JSON.parse(raw)
-  } catch (e) {
-    return {}
-  }
-}
-
-function writeSnapshots(s: Record<string, Snapshot>) {
-  localStorage.setItem(SNAPSHOT_KEY, JSON.stringify(s))
-}
-
-function broadcastChange() {
-  try {
-    // notify other hook instances in the same window
-    window.dispatchEvent(new CustomEvent('traveloptimizer.compare:changed'))
-  } catch (e) {
-    // ignore
-  }
+function broadcast(ids: string[], snapshots: Record<string, any>) {
+	try {
+		const ev = new CustomEvent(BROADCAST_EVENT, { detail: { ids, snapshots } })
+		window.dispatchEvent(ev)
+	} catch (err) {
+		// ignore
+	}
 }
 
 export default function useCompare() {
-  const [ids, setIds] = useState<string[]>(() => readIds())
-  const [snapshots, setSnapshots] = useState<Record<string, Snapshot>>(() => readSnapshots())
-  // refs to hold latest values for event handler comparisons
-  const idsRef = { current: ids } as { current: string[] }
-  const snapshotsRef = { current: snapshots } as { current: Record<string, Snapshot> }
+	const initial = readStorage()
+	const [ids, setIds] = useState<string[]>(initial.ids || [])
+	const [snapshots, setSnapshots] = useState<Record<string, any>>(initial.snapshots || {})
+	const jsonRef = useRef({ ids: JSON.stringify(initial.ids || []), snaps: JSON.stringify(initial.snapshots || {}) })
 
-  // keep refs up-to-date when state changes (no broadcasting here)
-  useEffect(() => { idsRef.current = ids }, [ids])
-  useEffect(() => { snapshotsRef.current = snapshots }, [snapshots])
+	useEffect(() => {
+		function handleBroadcast(e: Event) {
+			const detail = (e as CustomEvent)?.detail
+			if (!detail) return
+			const newIds = detail.ids || []
+			const newSnaps = detail.snapshots || {}
+			const s1 = JSON.stringify(newIds)
+			const s2 = JSON.stringify(newSnaps)
+			if (s1 === jsonRef.current.ids && s2 === jsonRef.current.snaps) return
+			jsonRef.current.ids = s1
+			jsonRef.current.snaps = s2
+			setIds(newIds)
+			setSnapshots(newSnaps)
+		}
 
-  // listen for changes from other hook instances & storage events (cross-tab)
-  useEffect(() => {
-    function handle() {
-      try {
-        const newIds = readIds()
-        const newSnapshots = readSnapshots()
-        // only update state if values actually differ to avoid update loops
-        const idsChanged = JSON.stringify(newIds) !== JSON.stringify(idsRef.current || [])
-        const snapsChanged = JSON.stringify(newSnapshots) !== JSON.stringify(snapshotsRef.current || {})
-        if (idsChanged) setIds(newIds)
-        if (snapsChanged) setSnapshots(newSnapshots)
-      } catch (e) {
-        // ignore
-      }
-    }
-    window.addEventListener('traveloptimizer.compare:changed', handle)
-    window.addEventListener('storage', handle)
-    return () => {
-      window.removeEventListener('traveloptimizer.compare:changed', handle)
-      window.removeEventListener('storage', handle)
-    }
-  }, [])
+		function handleStorage(e: StorageEvent) {
+			if (!e.key) return
+			if (e.key !== STORAGE_IDS && e.key !== STORAGE_SNAPS) return
+			const cur = readStorage()
+			const s1 = JSON.stringify(cur.ids)
+			const s2 = JSON.stringify(cur.snapshots)
+			if (s1 === jsonRef.current.ids && s2 === jsonRef.current.snaps) return
+			jsonRef.current.ids = s1
+			jsonRef.current.snaps = s2
+			setIds(cur.ids)
+			setSnapshots(cur.snapshots)
+		}
 
-  function has(id: string) {
-    return ids.includes(id)
-  }
+		window.addEventListener(BROADCAST_EVENT, handleBroadcast)
+		window.addEventListener('storage', handleStorage)
+		return () => {
+			window.removeEventListener(BROADCAST_EVENT, handleBroadcast)
+			window.removeEventListener('storage', handleStorage)
+		}
+	}, [])
 
-  function remove(id: string) {
-    // operate against localStorage so instances stay in sync
-    const curIds = readIds().filter(x => x !== id)
-    const curSnapshots = readSnapshots()
-    delete curSnapshots[id]
-    writeIds(curIds)
-    writeSnapshots(curSnapshots)
-    setIds(curIds)
-    setSnapshots(curSnapshots)
-    broadcastChange()
-  }
+	function syncAndBroadcast(nextIds: string[], nextSnaps: Record<string, any>) {
+		jsonRef.current.ids = JSON.stringify(nextIds)
+		jsonRef.current.snaps = JSON.stringify(nextSnaps)
+		setIds(nextIds)
+		setSnapshots(nextSnaps)
+		writeStorage(nextIds, nextSnaps)
+		broadcast(nextIds, nextSnaps)
+	}
 
-  function clear() {
-    writeIds([])
-    writeSnapshots({})
-    setIds([])
-    setSnapshots({})
-    broadcastChange()
-  }
+	function toggle(id: string, snap?: any) {
+		const curIds = JSON.parse(jsonRef.current.ids) as string[]
+		const curSnaps = JSON.parse(jsonRef.current.snaps) as Record<string, any>
+		if (curIds.includes(id)) {
+			const nextIds = curIds.filter(x => x !== id)
+			const nextSnaps = { ...curSnaps }
+			delete nextSnaps[id]
+			syncAndBroadcast(nextIds, nextSnaps)
+			return { ok: true }
+		}
+		if (curIds.length >= 3) return { ok: false, message: 'Maximum reached' }
+		const nextIds = curIds.concat([id])
+		const nextSnaps = { ...curSnaps }
+		if (snap) nextSnaps[id] = snap
+		syncAndBroadcast(nextIds, nextSnaps)
+		return { ok: true }
+	}
 
-  /**
-   * Toggle an id into compare. If snapshot provided, store it.
-   * Returns { ok, message }
-   */
-  function toggle(id: string, snapshot?: Snapshot): { ok: boolean; message?: string } {
-    // operate against localStorage atomically to enforce max-3 across hook instances
-    const curIds = readIds()
-    const curSnapshots = readSnapshots()
-    const present = curIds.includes(id)
-    if (present) {
-      const nextIds = curIds.filter(x => x !== id)
-      delete curSnapshots[id]
-      writeIds(nextIds)
-      writeSnapshots(curSnapshots)
-      setIds(nextIds)
-      setSnapshots(curSnapshots)
-      broadcastChange()
-      return { ok: true }
-    }
-    if (curIds.length >= 3) return { ok: false, message: 'You can compare up to 3 flights.' }
-    const nextIds = [...curIds, id]
-    if (snapshot) curSnapshots[id] = snapshot
-    writeIds(nextIds)
-    writeSnapshots(curSnapshots)
-    setIds(nextIds)
-    setSnapshots(curSnapshots)
-    broadcastChange()
-    return { ok: true }
-  }
+	function remove(id: string) {
+		const curIds = JSON.parse(jsonRef.current.ids) as string[]
+		const curSnaps = JSON.parse(jsonRef.current.snaps) as Record<string, any>
+		const next = curIds.filter(x => x !== id)
+		const nextSnaps = { ...curSnaps }
+		delete nextSnaps[id]
+		syncAndBroadcast(next, nextSnaps)
+	}
 
-  function listSnapshots(): Snapshot[] {
-    return ids.map(id => snapshots[id]).filter(Boolean)
-  }
+	function clear() {
+		syncAndBroadcast([], {})
+	}
 
-  return { ids, snapshots, has, toggle, remove, clear, listSnapshots }
+	function has(id: string) {
+		return ids.includes(id)
+	}
+
+	return { ids, snapshots, toggle, remove, clear, has }
 }

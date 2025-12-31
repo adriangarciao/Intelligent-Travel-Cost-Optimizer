@@ -11,14 +11,23 @@ beforeEach(() => {
 function HookHarness({ onReady }: { onReady: (api: any) => void }) {
   const cmp = useCompare()
   useEffect(() => {
-    const api = {
-      getIds: () => cmp.ids,
-      getSnapshots: () => cmp.snapshots,
-      toggle: (id: string, snap?: any) => cmp.toggle(id, snap),
-      remove: (id: string) => cmp.remove(id),
-      clear: () => cmp.clear()
-    }
-    onReady(api)
+    const t = setTimeout(() => {
+      const api = {
+        getIds: () => {
+          const raw = localStorage.getItem('traveloptimizer.compare.offerIds')
+          return raw ? JSON.parse(raw) : []
+        },
+        getSnapshots: () => {
+          const raw = localStorage.getItem('traveloptimizer.compare.snapshots')
+          return raw ? JSON.parse(raw) : {}
+        },
+        toggle: (id: string, snap?: any) => cmp.toggle(id, snap),
+        remove: (id: string) => cmp.remove(id),
+        clear: () => cmp.clear()
+      }
+      onReady(api)
+    }, 0)
+    return () => clearTimeout(t)
   }, [cmp, onReady])
   return null
 }
