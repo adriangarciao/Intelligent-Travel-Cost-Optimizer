@@ -1,5 +1,7 @@
 import React, { useMemo, useState, useEffect } from 'react'
 import DealMeter from './DealMeter'
+import useCompare from '../hooks/useCompare'
+import { triggerToast } from './Toast'
 import { SavedItem } from '../hooks/useSavedItems'
 import type { TripOptionDTO, FlightSummary } from '../types/api'
 import { saveOffer } from '../lib/api'
@@ -46,6 +48,8 @@ export default function TripCard({ searchId, option, onSave, isSaved, }: Props &
 
   const [saving, setSaving] = useState(false)
   const [savedId, setSavedId] = useState<string | null>(null)
+  const compare = useCompare()
+  const compareId = `${searchId}:${optionId}`
 
   // support external control to force expansion (e.g. open from a notification)
   // read `expandedOverride` from the props object passed in (TypeScript single-site typing above)
@@ -138,6 +142,28 @@ export default function TripCard({ searchId, option, onSave, isSaved, }: Props &
                 {saving ? 'Saving...' : (savedId ? 'Saved' : 'Save')}
               </button>
             )}
+            <button
+              className={`px-3 py-1 rounded text-sm border ${compare.has(compareId) ? 'bg-blue-600 text-white' : 'bg-white text-gray-700'}` + (compare.ids.length >= 3 && !compare.has(compareId) ? ' opacity-60 cursor-not-allowed' : '')}
+              onClick={() => {
+                if (compare.ids.length >= 3 && !compare.has(compareId)) {
+                  triggerToast('You can compare up to 3 flights')
+                  return
+                }
+                const snap = {
+                  id: compareId,
+                  tripOptionId: optionId,
+                  totalPrice,
+                  currency,
+                  valueScore: typeof valueScore === 'number' ? valueScore : (Number(valueScore) || 0),
+                  flight
+                }
+                const res = compare.toggle(compareId, snap as any)
+                if (!res.ok && res.message) triggerToast(res.message)
+              }}
+              disabled={compare.ids.length >= 3 && !compare.has(compareId)}
+            >
+              {compare.has(compareId) ? 'Compare ✓' : 'Compare'}
+            </button>
             {isSaved && (
               <div className="px-3 py-1 rounded text-sm text-gray-600">Saved</div>
             )}

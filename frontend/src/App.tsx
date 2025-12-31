@@ -4,6 +4,9 @@ import SearchPage from './pages/SearchPage'
 import ResultsPage from './pages/ResultsPage'
 import SavedPage from './pages/SavedPage'
 import SavedOffersPage from './pages/SavedOffersPage'
+import CompareBar from './components/CompareBar'
+import ComparePage from './pages/ComparePage'
+import Toast from './components/Toast'
 
 export default function App() {
   return (
@@ -21,9 +24,12 @@ export default function App() {
         </div>
       </header>
       <main className="max-w-5xl mx-auto px-4 py-8">
+        <CompareBar />
+        <Toast />
         <Routes>
           <Route path="/" element={<SearchPage />} />
           <Route path="/results/:searchId" element={<ResultsPage />} />
+          <Route path="/compare" element={<ComparePage />} />
           <Route path="/saved" element={<SavedPage />} />
           <Route path="/saved/offers" element={<SavedOffersPage />} />
         </Routes>
