@@ -4,8 +4,9 @@ import DealMeter from '../components/DealMeter'
 import { useNavigate } from 'react-router-dom'
 import { computeDealScores, getOptionId } from '../utils/dealScore'
 import { useQueryClient } from '@tanstack/react-query'
-import { encodeSharePayload, decodeSharePayload, downloadJson, downloadCsv, buildOfferSummaryText, OfferSnapshot } from '../utils/shareExport'
+import { decodeSharePayload, OfferSnapshot } from '../utils/shareExport'
 import { triggerToast } from '../components/Toast'
+import ShareExportModal from '../components/ShareExportModal'
 
 function parseDurationMinutes(d?: string | number): number | null {
   if (!d) return null
@@ -199,62 +200,9 @@ export default function ComparePage() {
           )
         })}
       </div>
-    </div>
       {showShare && (
-        <div className="fixed inset-0 bg-black bg-opacity-40 z-50 flex items-center justify-center">
-          <div className="bg-white rounded shadow-lg p-6 w-full max-w-lg">
-            <h3 className="text-lg font-semibold mb-3">Share / Export</h3>
-            <div className="text-sm text-gray-600 mb-3">Share link contains only the selected offer details (no personal data).</div>
-            <div className="flex flex-col gap-2">
-              <button className="px-3 py-2 border rounded text-left" onClick={async () => {
-                const payload = encodeSharePayload(items)
-                const url = window.location.origin + window.location.pathname + '?share=' + payload
-                try { await navigator.clipboard.writeText(url); triggerToast('Share link copied to clipboard') } catch (e) { triggerToast('Copy failed') }
-              }}>Copy share link</button>
-
-              <button className="px-3 py-2 border rounded text-left" onClick={() => {
-                const filename = `traveloptimizer-compare-${new Date().toISOString().replace(/[:.]/g,'-')}.json`
-                downloadJson(filename, { offers: items, createdAt: new Date().toISOString() })
-              }}>Download JSON</button>
-
-              <button className="px-3 py-2 border rounded text-left" onClick={() => {
-                const filename = `traveloptimizer-compare-${new Date().toISOString().replace(/[:.]/g,'-')}.csv`
-                const rows = items.map((it: any) => ({
-                  tripOptionId: it.tripOptionId || it.id,
-                  totalPrice: it.totalPrice,
-                  currency: it.currency,
-                  valueScore: it.valueScore,
-                  airlineName: it.flight?.airlineName || '',
-                  airlineCode: it.flight?.airlineCode || '',
-                  flightNumber: it.flight?.flightNumber || '',
-                  stops: it.flight?.stops ?? '',
-                  durationText: it.flight?.durationText || '',
-                  segments: Array.isArray(it.flight?.segments) ? it.flight.segments.join('|') : ''
-                }))
-                downloadCsv(filename, rows, ['tripOptionId','totalPrice','currency','valueScore','airlineName','airlineCode','flightNumber','stops','durationText','segments'])
-              }}>Download CSV</button>
-
-              <button className="px-3 py-2 border rounded text-left" onClick={async () => {
-                const txt = buildOfferSummaryText(items)
-                try { await navigator.clipboard.writeText(txt); triggerToast('Summary copied to clipboard') } catch (e) { triggerToast('Copy failed') }
-              }}>Copy Summary</button>
-
-              {navigator.share && (
-                <button className="px-3 py-2 border rounded text-left" onClick={() => {
-                  const payload = encodeSharePayload(items)
-                  const url = window.location.origin + window.location.pathname + '?share=' + payload
-                  // use Web Share API
-                  // eslint-disable-next-line @typescript-eslint/no-floating-promises
-                  navigator.share({ title: 'Compare offers', text: 'Compare offers from TravelOptimizer', url }).catch(() => {})
-                }}>Share via device</button>
-              )}
-
-              <div className="mt-3 flex justify-end gap-2">
-                <button className="px-3 py-1 border rounded" onClick={() => setShowShare(false)}>Close</button>
-              </div>
-            </div>
-          </div>
-        </div>
+        <ShareExportModal items={items as OfferSnapshot[]} onClose={() => setShowShare(false)} />
       )}
+    </div>
   )
 }

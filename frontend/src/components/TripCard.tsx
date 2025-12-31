@@ -2,6 +2,7 @@ import React, { useMemo, useState, useEffect } from 'react'
 import DealMeter from './DealMeter'
 import useCompare from '../hooks/useCompare'
 import { triggerToast } from './Toast'
+import ShareExportModal from './ShareExportModal'
 import { SavedItem } from '../hooks/useSavedItems'
 import type { TripOptionDTO, FlightSummary } from '../types/api'
 import { saveOffer } from '../lib/api'
@@ -50,6 +51,7 @@ export default function TripCard({ searchId, option, onSave, isSaved, }: Props &
   const [savedId, setSavedId] = useState<string | null>(null)
   const compare = useCompare()
   const compareId = `${searchId}:${optionId}`
+  const [showShare, setShowShare] = React.useState(false)
 
   // support external control to force expansion (e.g. open from a notification)
   // read `expandedOverride` from the props object passed in (TypeScript single-site typing above)
@@ -164,6 +166,7 @@ export default function TripCard({ searchId, option, onSave, isSaved, }: Props &
             >
               {compare.has(compareId) ? 'Compare ✓' : 'Compare'}
             </button>
+            <button className="px-3 py-1 border rounded text-sm" onClick={() => setShowShare(true)}>Share</button>
             {isSaved && (
               <div className="px-3 py-1 rounded text-sm text-gray-600">Saved</div>
             )}
@@ -230,6 +233,9 @@ export default function TripCard({ searchId, option, onSave, isSaved, }: Props &
           )}
         </div>
       </div>
+      {showShare && (
+        <ShareExportModal items={[{ id: compareId, tripOptionId: optionId, totalPrice, currency, valueScore: typeof valueScore === 'number' ? valueScore : Number(valueScore) || 0, flight }]} onClose={() => setShowShare(false)} />
+      )}
     </div>
   )
 }

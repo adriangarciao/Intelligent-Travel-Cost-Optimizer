@@ -14,15 +14,51 @@ type SharePayloadV1 = {
   offers: OfferSnapshot[]
 }
 
-function base64UrlEncode(buf: string) {
-  return Buffer.from(buf).toString('base64').replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_')
+function base64UrlEncode(input: string) {
+  // browser-friendly UTF-8 -> base64
+  try {
+    if (typeof btoa === 'function') {
+      const utf8 = encodeURIComponent(input).replace(/%([0-9A-F]{2})/g, function(match, p1) {
+        return String.fromCharCode(parseInt(p1, 16))
+      })
+      const b64 = btoa(utf8)
+      return b64.replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_')
+    }
+  } catch (e) {
+    // fall through to Buffer if available
+  }
+  // Node fallback
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  if (typeof (globalThis as any).Buffer !== 'undefined') {
+    // @ts-ignore
+    return (globalThis as any).Buffer.from(input).toString('base64').replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_')
+  }
+  throw new Error('No base64 encoder available')
 }
 
 function base64UrlDecode(str: string) {
-  // pad
-  const pad = str.length % 4 === 0 ? '' : '='.repeat(4 - (str.length % 4))
-  const b = str.replace(/-/g, '+').replace(/_/g, '/') + pad
-  return Buffer.from(b, 'base64').toString('utf8')
+  const b64 = str.replace(/-/g, '+').replace(/_/g, '/')
+  const pad = b64.length % 4 === 0 ? '' : '='.repeat(4 - (b64.length % 4))
+  const full = b64 + pad
+  try {
+    if (typeof atob === 'function') {
+      const bin = atob(full)
+      // decode UTF-8
+      const esc = bin.split('').map(function(c) {
+        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)
+      }).join('')
+      return decodeURIComponent(esc)
+    }
+  } catch (e) {
+    // fall through to Buffer
+  }
+  // Node fallback
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  if (typeof (globalThis as any).Buffer !== 'undefined') {
+    // @ts-ignore
+    return (globalThis as any).Buffer.from(full, 'base64').toString('utf8')
+  }
+  throw new Error('No base64 decoder available')
 }
 
 export function encodeSharePayload(offers: OfferSnapshot[]) {
