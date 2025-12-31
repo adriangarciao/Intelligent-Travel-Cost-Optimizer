@@ -6,7 +6,6 @@ import watch from '../lib/watch'
 import { computeDealScores, getOptionId } from '../utils/dealScore'
 import { useQueryClient } from '@tanstack/react-query'
 import NotificationsPanel from '../components/NotificationsPanel'
-import CompareToggleOffer from '../components/CompareToggleOffer'
 
 export default function SavedOffersPage() {
   const [offers, setOffers] = useState<any[]>([])
@@ -176,7 +175,6 @@ export default function SavedOffersPage() {
                         </div>
                       </div>
                       <button className="px-2 py-1 border rounded text-sm" onClick={() => handleRemove(o.id)}>Remove</button>
-                      <CompareToggleOffer id={o.id} option={option} />
                     </div>
                 </div>
               </div>
