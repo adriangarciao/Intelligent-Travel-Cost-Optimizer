@@ -16,4 +16,10 @@ export type TripOptionDTO = {
   valueScore?: number
   flightSummary?: FlightSummary
   valueScoreBreakdown?: Record<string, number>
+  mlRecommendation?: {
+    action?: 'BUY' | 'WAIT'
+    trend?: 'likely_up' | 'likely_down' | 'stable'
+    confidence?: number
+    reasons?: string[]
+  }
 }

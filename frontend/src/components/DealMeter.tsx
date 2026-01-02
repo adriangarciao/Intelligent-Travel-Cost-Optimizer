@@ -4,6 +4,7 @@ type Props = {
   dealScore: number | null
   label?: string
   percentileText?: string
+  showPercentile?: boolean
 }
 
 export default function DealMeter({ dealScore, label, percentileText }: Props) {
@@ -66,7 +67,11 @@ export default function DealMeter({ dealScore, label, percentileText }: Props) {
 
       <div className="mt-2 flex items-center justify-between text-sm">
         <div className="font-medium">{score === null ? (label || 'Not enough data') : (label || '')}</div>
-        <div className="text-gray-600">{score === null ? 'Not enough data' : `${percentileText ?? (pct !== null ? `Top ${pct}%` : '')}`}</div>
+        { (arguments[0] as any)?.showPercentile === false ? (
+          <div />
+        ) : (
+          <div className="text-gray-600">{score === null ? 'Not enough data' : `${percentileText ?? (pct !== null ? `Top ${pct}%` : '')}`}</div>
+        ) }
       </div>
     </div>
   )

@@ -36,6 +36,24 @@ class OptionRecommendationResponse(BaseModel):
     priceTrend: str
     note: Optional[str] = None
 
+
+class PredictRequest(BaseModel):
+    route: dict
+    departureDate: date
+    daysToDeparture: int
+    stops: Optional[int] = 0
+    durationMinutes: Optional[int] = 0
+    price: float
+    pricePercentileWithinSearch: Optional[float] = 0.5
+    airlineCode: Optional[str] = None
+
+
+class PredictResponse(BaseModel):
+    action: str  # BUY | WAIT
+    trend: str
+    confidence: float
+    reasons: list[str]
+
 @app.post("/predict/best-date-window", response_model=BestDateWindowResponse)
 def predict_best_date_window(req: BestDateWindowRequest):
     # deterministic midpoint logic
@@ -84,3 +102,36 @@ def predict_option_recommendation(req: OptionRecommendationRequest):
         note = "Meets budget criteria"
 
     return OptionRecommendationResponse(isGoodDeal=is_good, priceTrend=price_trend, note=note)
+
+
+@app.post("/predict", response_model=PredictResponse)
+def predict(req: PredictRequest):
+    # Simple rule-based predictor (MVP) with explainability
+    reasons: list[str] = []
+    # Decide action
+    action = "WAIT"
+    if req.daysToDeparture <= 7 and req.pricePercentileWithinSearch <= 0.35:
+        action = "BUY"
+        reasons.append("Soon to depart and price is in the lower percentile of this search")
+    else:
+        reasons.append("Price and timing suggest waiting")
+
+    # Trend heuristic
+    if req.pricePercentileWithinSearch <= 0.3:
+        trend = "likely_down"
+        reasons.append("Historical trend suggests price could drop")
+    elif req.pricePercentileWithinSearch >= 0.7:
+        trend = "likely_up"
+        reasons.append("Price is high relative to this search; likely to increase")
+    else:
+        trend = "stable"
+        reasons.append("Price appears stable within this search window")
+
+    # Confidence heuristic
+    confidence = 0.6
+    if abs(req.daysToDeparture) <= 7:
+        confidence += 0.15
+    confidence -= abs(req.pricePercentileWithinSearch - 0.5) * 0.3
+    confidence = max(0.0, min(1.0, confidence))
+
+    return PredictResponse(action=action, trend=trend, confidence=float(confidence), reasons=reasons)

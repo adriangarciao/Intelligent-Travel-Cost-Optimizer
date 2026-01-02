@@ -151,7 +151,7 @@ public class TripSearchServiceImpl implements TripSearchService {
                         if (mlClient != null && mlEnabled) {
                 try {
                     MlBestDateWindowDTO mlWindow = mlClient.getBestDateWindow(request);
-                    MlRecommendationDTO rec = mlClient.getOptionRecommendation(option, request);
+                    MlRecommendationDTO rec = mlClient.getOptionRecommendation(option, request, java.util.Collections.singletonList(option));
                     option.setMlRecommendation(rec);
                     return TripSearchResponseDTO.builder()
                             .searchId(UUID.randomUUID())
@@ -321,24 +321,24 @@ public class TripSearchServiceImpl implements TripSearchService {
                                         java.util.concurrent.CompletableFuture<Void> f = java.util.concurrent.CompletableFuture.runAsync(() -> {
                                                 // simple retry
                                                 try {
-                                                        MlRecommendationDTO rec = mlClient.getOptionRecommendation(optionDto, request);
+                                                        MlRecommendationDTO rec = mlClient.getOptionRecommendation(optionDto, request, dto.getOptions());
                                                         optionDto.setMlRecommendation(rec);
                                                 } catch (Throwable t) {
                                                         log.warn("ML recommendation first attempt failed for option {}: {}", optionDto.getTripOptionId(), t.toString());
                                                         try { Thread.sleep(150); } catch (InterruptedException ignored) {}
                                                         try {
-                                                                MlRecommendationDTO rec = mlClient.getOptionRecommendation(optionDto, request);
+                                                                MlRecommendationDTO rec = mlClient.getOptionRecommendation(optionDto, request, dto.getOptions());
                                                                 optionDto.setMlRecommendation(rec);
                                                         } catch (Throwable t2) {
                                                                 log.warn("ML recommendation retry failed for option {}: {}", optionDto.getTripOptionId(), t2.toString());
-                                                                optionDto.setMlRecommendation(MlRecommendationDTO.builder().isGoodDeal(false).priceTrend("unknown").note("ML unavailable").build());
+                                                                optionDto.setMlRecommendation(MlRecommendationDTO.builder().action("WAIT").trend("stable").confidence(0.0).reasons(java.util.List.of("ML unavailable")).note("ML unavailable").build());
                                                         }
 
                                                                 
                                                 }
                                         }, executor).orTimeout(2, java.util.concurrent.TimeUnit.SECONDS).exceptionally(t -> {
                                                 log.warn("ML recommendation timeout for option {}: {}", optionDto.getTripOptionId(), t.toString());
-                                                optionDto.setMlRecommendation(MlRecommendationDTO.builder().isGoodDeal(false).priceTrend("unknown").note("ML timeout").build());
+                                                optionDto.setMlRecommendation(MlRecommendationDTO.builder().action("WAIT").trend("stable").confidence(0.0).reasons(java.util.List.of("ML timeout")).note("ML timeout").build());
                                                 return null;
                                         });
                                         recFutures.add(f);

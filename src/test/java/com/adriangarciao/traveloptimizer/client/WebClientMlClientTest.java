@@ -37,7 +37,7 @@ public class WebClientMlClientTest {
     }
 
     public void stubOptionRecommendation(String body) {
-        WMEXT.getServer().stubFor(post(urlPathEqualTo("/predict/option-recommendation"))
+        WMEXT.getServer().stubFor(post(urlPathEqualTo("/predict"))
             .willReturn(aResponse().withHeader("Content-Type", "application/json").withBody(body).withStatus(200)));
     }
 
@@ -46,7 +46,7 @@ public class WebClientMlClientTest {
     }
 
     public void stub500ForOptionRecommendation() {
-        WMEXT.getServer().stubFor(post(urlPathEqualTo("/predict/option-recommendation")).willReturn(aResponse().withStatus(500)));
+        WMEXT.getServer().stubFor(post(urlPathEqualTo("/predict")).willReturn(aResponse().withStatus(500)));
     }
 
     // WireMock lifecycle handled by WireMockMlServerExtension
@@ -81,7 +81,7 @@ public class WebClientMlClientTest {
         .currency("USD")
         .build();
 
-    MlRecommendationDTO rec = client.getOptionRecommendation(option, req);
+    MlRecommendationDTO rec = client.getOptionRecommendation(option, req, java.util.List.of(option));
     assertThat(rec).isNotNull();
     assertThat(rec.isGoodDeal()).isTrue();
     assertThat(rec.getPriceTrend()).isEqualTo("stable");
@@ -94,7 +94,7 @@ public class WebClientMlClientTest {
     assertThat(fallback).isNotNull();
     assertThat(fallback.getConfidence()).isEqualTo(0.0);
 
-    MlRecommendationDTO fallbackRec = client.getOptionRecommendation(option, req);
+    MlRecommendationDTO fallbackRec = client.getOptionRecommendation(option, req, java.util.List.of(option));
     assertThat(fallbackRec).isNotNull();
     assertThat(fallbackRec.isGoodDeal()).isFalse();
     assertThat(fallbackRec.getPriceTrend()).isEqualTo("unknown");

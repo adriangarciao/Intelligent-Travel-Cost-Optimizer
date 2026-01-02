@@ -17,6 +17,9 @@ import org.springframework.web.client.RestTemplate;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
+import com.adriangarciao.traveloptimizer.test.ThreadLeakDetectorExtension;
+import com.adriangarciao.traveloptimizer.test.CloseSpringContextExtension;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.MOCK)
@@ -26,7 +29,7 @@ import static org.assertj.core.api.Assertions.assertThat;
     "travel.providers.mode=mock",
     "spring.cache.type=simple"
 })
-@org.junit.jupiter.api.extension.ExtendWith(com.adriangarciao.traveloptimizer.test.ThreadLeakDetectorExtension.class)
+@org.junit.jupiter.api.extension.ExtendWith({com.adriangarciao.traveloptimizer.test.ThreadLeakDetectorExtension.class, com.adriangarciao.traveloptimizer.test.CloseSpringContextExtension.class})
 public class TripSearchMlFailureTest {
 
     @Autowired

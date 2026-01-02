@@ -5,20 +5,27 @@ import com.adriangarciao.traveloptimizer.dto.TripSearchResponseDTO;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.extension.ExtendWith;
 import com.adriangarciao.traveloptimizer.test.ThreadLeakDetectorExtension;
-import com.adriangarciao.traveloptimizer.test.support.WireMockMlServerExtension;
+import com.adriangarciao.traveloptimizer.test.CloseSpringContextExtension;
+import com.github.tomakehurst.wiremock.WireMockServer;
+import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.web.server.LocalServerPort;
-import org.springframework.web.client.RestTemplate;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.test.web.servlet.MockMvc;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import org.springframework.http.MediaType;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.containers.GenericContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
 import org.springframework.test.context.TestPropertySource;
 import org.testcontainers.DockerClientFactory;
@@ -33,31 +40,47 @@ import java.time.LocalDate;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.MOCK)
+@AutoConfigureMockMvc
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 @ActiveProfiles("test-no-security")
-@Testcontainers
-@ExtendWith({ThreadLeakDetectorExtension.class})
+// Start Testcontainers manually in static initializer to control startup order in tests
+@ExtendWith({ThreadLeakDetectorExtension.class, CloseSpringContextExtension.class})
 // TestPropertySource removed: datasource properties live in Testcontainers DynamicPropertySource
 public class TripSearchIntegrationTest {
 
-    static WireMockMlServerExtension WMEXT = new WireMockMlServerExtension();
+    static WireMockServer wireMockServer;
 
-    @org.junit.jupiter.api.extension.RegisterExtension
-    static WireMockMlServerExtension registeredWireMock = WMEXT;
+    static {
+        wireMockServer = new WireMockServer(WireMockConfiguration.options().dynamicPort());
+        wireMockServer.start();
+        wireMockServer.stubFor(com.github.tomakehurst.wiremock.client.WireMock.post(com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo("/predict/best-date-window"))
+                .willReturn(com.github.tomakehurst.wiremock.client.WireMock.aResponse().withHeader("Content-Type", "application/json")
+                        .withBody("{\"recommendedDepartureDate\":\"2025-12-30\",\"recommendedReturnDate\":\"2026-01-03\",\"confidence\":0.42}")
+                        .withStatus(200)));
+        wireMockServer.stubFor(com.github.tomakehurst.wiremock.client.WireMock.post(com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo("/predict/option-recommendation"))
+                .willReturn(com.github.tomakehurst.wiremock.client.WireMock.aResponse().withHeader("Content-Type", "application/json")
+                        .withBody("{\"isGoodDeal\":true,\"priceTrend\":\"stable\",\"note\":\"mocked\"}")
+                        .withStatus(200)));
+    }
 
     @DynamicPropertySource
     static void registerMlProp(DynamicPropertyRegistry registry) {
-        registry.add("ml.service.base-url", () -> WMEXT.getServer().baseUrl());
+        registry.add("ml.service.base-url", () -> wireMockServer.baseUrl());
     }
 
-    @Container
-    static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>(DockerImageName.parse("postgres:15-alpine"))
+        static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>(DockerImageName.parse("postgres:15-alpine"))
             .withDatabaseName("travelassistant")
             .withUsername("postgres")
             .withPassword("postgres");
 
-    @Container
-    static GenericContainer<?> redis = new GenericContainer<>(DockerImageName.parse("redis:7-alpine")).withExposedPorts(6379);
+        static GenericContainer<?> redis = new GenericContainer<>(DockerImageName.parse("redis:7-alpine")).withExposedPorts(6379);
+
+        static {
+        // start containers before Spring context bootstrap / DynamicPropertySource usage
+        postgres.start();
+        redis.start();
+        }
 
     @DynamicPropertySource
     static void registerPgProperties(DynamicPropertyRegistry registry) {
@@ -73,8 +96,18 @@ public class TripSearchIntegrationTest {
         registry.add("spring.data.redis.port", () -> Integer.toString(redis.getMappedPort(6379)));
     }
 
-    @LocalServerPort
-    private int port;
+    @org.junit.jupiter.api.AfterAll
+    static void stopContainers() {
+        try { postgres.stop(); } catch (Throwable ignored) {}
+        try { redis.stop(); } catch (Throwable ignored) {}
+        try { wireMockServer.stop(); } catch (Throwable ignored) {}
+    }
+
+    @Autowired
+    private MockMvc mockMvc;
+
+    @Autowired(required = false)
+    private ObjectMapper objectMapper;
 
     @BeforeAll
     static void noOpBeforeAll() {
@@ -87,7 +120,7 @@ public class TripSearchIntegrationTest {
     private static final Logger log = LoggerFactory.getLogger(TripSearchIntegrationTest.class);
 
     @Test
-    void searchEndpoint_returnsOkAndPayload() {
+    void searchEndpoint_returnsOkAndPayload() throws Exception {
         TripSearchRequestDTO req = TripSearchRequestDTO.builder()
                 .origin("SFO")
                 .destination("JFK")
@@ -119,10 +152,16 @@ public class TripSearchIntegrationTest {
             }
         }
 
-        RestTemplate rest = new RestTemplate();
-        var response1 = rest.postForEntity("http://localhost:" + port + "/api/trips/search", req, TripSearchResponseDTO.class);
-        assertThat(response1.getStatusCode().is2xxSuccessful()).isTrue();
-        TripSearchResponseDTO body1 = response1.getBody();
+        ObjectMapper mapper = this.objectMapper != null ? this.objectMapper : new ObjectMapper()
+            .registerModule(new JavaTimeModule())
+            .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+
+        var mvcResult1 = mockMvc.perform(post("/api/trips/search")
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(mapper.writeValueAsString(req)))
+            .andExpect(status().is2xxSuccessful())
+            .andReturn();
+        TripSearchResponseDTO body1 = mapper.readValue(mvcResult1.getResponse().getContentAsString(), TripSearchResponseDTO.class);
         assertThat(body1).isNotNull();
         assertThat(body1.getSearchId()).isNotNull();
         assertThat(body1.getOrigin()).isEqualTo("SFO");
@@ -131,9 +170,12 @@ public class TripSearchIntegrationTest {
         assertThat(body1.getOptions().get(0).getTripOptionId()).isNotNull();
 
         // Repeat same request to validate cache hit (when Redis/Testcontainers enabled)
-        var response2 = rest.postForEntity("http://localhost:" + port + "/api/trips/search", req, TripSearchResponseDTO.class);
-        assertThat(response2.getStatusCode().is2xxSuccessful()).isTrue();
-        TripSearchResponseDTO body2 = response2.getBody();
+        var mvcResult2 = mockMvc.perform(post("/api/trips/search")
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(mapper.writeValueAsString(req)))
+            .andExpect(status().is2xxSuccessful())
+            .andReturn();
+        TripSearchResponseDTO body2 = mapper.readValue(mvcResult2.getResponse().getContentAsString(), TripSearchResponseDTO.class);
         assertThat(body2).isNotNull();
         // When cache is active, the returned searchId should match the first response
         assertThat(body2.getSearchId()).isEqualTo(body1.getSearchId());
