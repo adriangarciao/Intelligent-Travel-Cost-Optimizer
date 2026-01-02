@@ -18,6 +18,7 @@ import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.test.context.TestPropertySource;
 import org.junit.jupiter.api.extension.ExtendWith;
 import com.adriangarciao.traveloptimizer.test.ThreadLeakDetectorExtension;
+import com.adriangarciao.traveloptimizer.test.CloseSpringContextExtension;
 import com.adriangarciao.traveloptimizer.test.support.WireMockMlServerExtension;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -33,7 +34,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.MOCK)
 @ActiveProfiles("test-no-security")
 @TestPropertySource(properties = {"travel.providers.mode=mock", "spring.cache.type=simple"})
-@ExtendWith({ThreadLeakDetectorExtension.class})
+@ExtendWith({ThreadLeakDetectorExtension.class, CloseSpringContextExtension.class})
 public class TripSearchProviderFailureTest {
 
     static WireMockMlServerExtension WMEXT = new WireMockMlServerExtension();

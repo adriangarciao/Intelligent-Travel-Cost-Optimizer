@@ -17,6 +17,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import javax.annotation.PostConstruct;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 
@@ -24,6 +26,7 @@ import java.time.Duration;
 
 @Slf4j
 @Component
+@ConditionalOnProperty(name = "ml.client", havingValue = "webclient")
 public class WebClientMlClient implements MlClient {
 
     private final WebClient webClient;
@@ -95,16 +98,32 @@ public class WebClientMlClient implements MlClient {
     }
 
     @Override
-    public MlRecommendationDTO getOptionRecommendation(TripOptionSummaryDTO option, TripSearchRequestDTO request) {
+    public MlRecommendationDTO getOptionRecommendation(TripOptionSummaryDTO option, TripSearchRequestDTO request, java.util.List<TripOptionSummaryDTO> allOptions) {
         var body = new java.util.HashMap<String, Object>();
-        body.put("price", option.getTotalPrice());
-        body.put("currency", option.getCurrency());
+        body.put("route", java.util.Map.of("origin", request.getOrigin(), "destination", request.getDestination()));
+        body.put("departureDate", request.getEarliestDepartureDate());
+        long daysToDeparture = java.time.temporal.ChronoUnit.DAYS.between(java.time.LocalDate.now(), request.getEarliestDepartureDate());
+        body.put("daysToDeparture", daysToDeparture);
         body.put("stops", option.getFlight() != null ? option.getFlight().getStops() : 0);
-        body.put("numTravelers", request.getNumTravelers());
-        body.put("maxBudget", request.getMaxBudget());
+        body.put("durationMinutes", option.getFlight() != null && option.getFlight().getDuration() != null ? option.getFlight().getDuration().toMinutes() : 0);
+        body.put("price", option.getTotalPrice());
+        body.put("airlineCode", option.getFlight() != null ? option.getFlight().getAirlineCode() : null);
+
+        // compute percentile
+        double percentile = 0.5;
+        if (allOptions != null && !allOptions.isEmpty()) {
+            int less = 0;
+            double price = option.getTotalPrice() != null ? option.getTotalPrice().doubleValue() : 0.0;
+            for (TripOptionSummaryDTO o : allOptions) {
+                double p = o.getTotalPrice() != null ? o.getTotalPrice().doubleValue() : 0.0;
+                if (p < price) less++;
+            }
+            percentile = ((double) less) / allOptions.size();
+        }
+        body.put("pricePercentileWithinSearch", percentile);
 
         java.util.concurrent.Callable<MlRecommendationDTO> supplier = () -> webClient.post()
-                .uri("/predict/option-recommendation")
+                .uri("/predict")
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue(body)
                 .retrieve()
@@ -116,18 +135,41 @@ public class WebClientMlClient implements MlClient {
             java.util.concurrent.Callable<MlRecommendationDTO> decorated =
                 io.github.resilience4j.retry.Retry.decorateCallable(retry,
                     io.github.resilience4j.circuitbreaker.CircuitBreaker.decorateCallable(circuitBreaker, supplier));
-            return decorated.call();
+            MlRecommendationDTO res = decorated.call();
+            if (res != null) {
+                // ensure legacy fields and sensible defaults are populated
+                if (res.getPriceTrend() == null) res.setPriceTrend("unknown");
+                if (res.getTrend() == null) res.setTrend("stable");
+                if (res.getIsGoodDeal() == null) res.setIsGoodDeal(Boolean.valueOf("BUY".equalsIgnoreCase(res.getAction())));
+                if (res.getNote() == null) res.setNote("ML result");
+                if (res.getReasons() == null) res.setReasons(java.util.List.of());
+                if (res.getConfidence() == null) res.setConfidence(0.0);
+                return res;
+            }
         } catch (Throwable t) {
-            log.warn("ML option-recommendation failed after retries/circuit for option {}: {}", option.getTripOptionId(), t.toString());
-            return MlRecommendationDTO.builder()
-                .isGoodDeal(false)
-                .priceTrend("unknown")
-                .note("ML service unavailable via fallback")
-                .build();
+            log.warn("ML option-recommendation failed after retries/circuit for option: {}", t.toString());
         }
+
+        // fallback
+        MlRecommendationDTO fallback = MlRecommendationDTO.builder()
+                .action("WAIT")
+                .trend("stable")
+                .confidence(0.0)
+                .reasons(java.util.List.of("ML service unavailable"))
+                .note("ML unavailable")
+                .build();
+        // populate legacy fields for frontend compatibility
+        fallback.setIsGoodDeal(false);
+        fallback.setPriceTrend("unknown");
+        return fallback;
     }
 
     // programmatic resilience fields
     private final Retry retry;
     private final CircuitBreaker circuitBreaker;
+
+    @PostConstruct
+    void init() {
+        log.info("ML client active: webclient (ml.client=webclient)");
+    }
 }

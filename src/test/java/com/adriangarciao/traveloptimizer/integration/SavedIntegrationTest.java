@@ -7,9 +7,22 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import com.adriangarciao.traveloptimizer.test.ThreadLeakDetectorExtension;
-import com.adriangarciao.traveloptimizer.test.support.WireMockMlServerExtension;
+import com.adriangarciao.traveloptimizer.test.CloseSpringContextExtension;
+import com.github.tomakehurst.wiremock.WireMockServer;
+import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.annotation.DirtiesContext;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.test.web.servlet.MockMvc;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.http.MediaType;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.junit.jupiter.Container;
@@ -28,25 +41,41 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.MOCK)
+@Import(com.adriangarciao.traveloptimizer.TestJacksonConfig.class)
+@AutoConfigureMockMvc
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 @ActiveProfiles("test-no-security")
-@Testcontainers
-@ExtendWith({ThreadLeakDetectorExtension.class})
+@ExtendWith({ThreadLeakDetectorExtension.class, CloseSpringContextExtension.class})
 public class SavedIntegrationTest {
 
-    static WireMockMlServerExtension WMEXT = new WireMockMlServerExtension();
+        static WireMockServer wireMockServer;
 
-    @org.junit.jupiter.api.extension.RegisterExtension
-    static WireMockMlServerExtension registeredWireMock = WMEXT;
+        static {
+        wireMockServer = new WireMockServer(WireMockConfiguration.options().dynamicPort());
+        wireMockServer.start();
+        wireMockServer.stubFor(com.github.tomakehurst.wiremock.client.WireMock.post(com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo("/predict/best-date-window"))
+            .willReturn(com.github.tomakehurst.wiremock.client.WireMock.aResponse().withHeader("Content-Type", "application/json")
+                .withBody("{\"recommendedDepartureDate\":\"2025-12-30\",\"recommendedReturnDate\":\"2026-01-03\",\"confidence\":0.42}")
+                .withStatus(200)));
+        wireMockServer.stubFor(com.github.tomakehurst.wiremock.client.WireMock.post(com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo("/predict/option-recommendation"))
+            .willReturn(com.github.tomakehurst.wiremock.client.WireMock.aResponse().withHeader("Content-Type", "application/json")
+                .withBody("{\"isGoodDeal\":true,\"priceTrend\":\"stable\",\"note\":\"mocked\"}")
+                .withStatus(200)));
+        }
 
-    @Container
-    static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>(DockerImageName.parse("postgres:15-alpine"))
+        static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>(DockerImageName.parse("postgres:15-alpine"))
             .withDatabaseName("travelassistant")
             .withUsername("postgres")
             .withPassword("postgres");
 
-    @Container
-    static GenericContainer<?> redis = new GenericContainer<>(DockerImageName.parse("redis:7-alpine")).withExposedPorts(6379);
+        static GenericContainer<?> redis = new GenericContainer<>(DockerImageName.parse("redis:7-alpine")).withExposedPorts(6379);
+
+        static {
+        // start containers before Spring context bootstrap / DynamicPropertySource usage
+        postgres.start();
+        redis.start();
+        }
 
     @DynamicPropertySource
     static void registerPgProperties(DynamicPropertyRegistry registry) {
@@ -58,11 +87,21 @@ public class SavedIntegrationTest {
         registry.add("spring.redis.port", () -> Integer.toString(redis.getMappedPort(6379)));
         registry.add("spring.data.redis.host", redis::getHost);
         registry.add("spring.data.redis.port", () -> Integer.toString(redis.getMappedPort(6379)));
-        registry.add("ml.service.base-url", () -> WMEXT.getServer().baseUrl());
+        registry.add("ml.service.base-url", () -> wireMockServer.baseUrl());
     }
 
-    @LocalServerPort
-    private int port;
+    @org.junit.jupiter.api.AfterAll
+    static void stopContainers() {
+        try { postgres.stop(); } catch (Throwable ignored) {}
+        try { redis.stop(); } catch (Throwable ignored) {}
+        try { wireMockServer.stop(); } catch (Throwable ignored) {}
+    }
+
+    @Autowired
+    private MockMvc mockMvc;
+
+    @Autowired
+    private ObjectMapper objectMapper;
 
     @BeforeAll
     static void beforeAll() {
@@ -70,9 +109,8 @@ public class SavedIntegrationTest {
     }
 
     @Test
-    void saveListDeleteRecentFlow() {
-        RestTemplate rest = new RestTemplate();
-
+    void saveListDeleteRecentFlow() throws Exception {
+        // use MockMvc to avoid starting embedded Tomcat
         TripSearchRequestDTO req = TripSearchRequestDTO.builder()
                 .origin("SFO")
                 .destination("JFK")
@@ -82,9 +120,12 @@ public class SavedIntegrationTest {
                 .numTravelers(1)
                 .build();
 
-        var resp = rest.postForEntity("http://localhost:" + port + "/api/trips/search", req, TripSearchResponseDTO.class);
-        assertThat(resp.getStatusCode().is2xxSuccessful()).isTrue();
-        TripSearchResponseDTO body = resp.getBody();
+        var mvcResult = mockMvc.perform(post("/api/trips/search")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(req)))
+            .andExpect(status().is2xxSuccessful())
+            .andReturn();
+        TripSearchResponseDTO body = objectMapper.readValue(mvcResult.getResponse().getContentAsString(), TripSearchResponseDTO.class);
         assertThat(body).isNotNull();
         UUID searchId = body.getSearchId();
 
@@ -101,30 +142,33 @@ public class SavedIntegrationTest {
                 .valueScore(body.getOptions().get(0).getValueScore())
                 .build();
 
-        org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
-        headers.add("X-Client-Id", "test-client-1");
-        org.springframework.http.HttpEntity<SavedTripDTO> entity = new org.springframework.http.HttpEntity<>(toSave, headers);
-        var saveResp = rest.postForEntity("http://localhost:" + port + "/api/saved", entity, String.class);
-        assertThat(saveResp.getStatusCode().value()).isEqualTo(201);
+        // Save one of the options
+        var saveResult = mockMvc.perform(post("/api/saved")
+                .contentType(MediaType.APPLICATION_JSON)
+                .header("X-Client-Id", "test-client-1")
+                .content(objectMapper.writeValueAsString(toSave)))
+            .andExpect(status().isCreated())
+            .andReturn();
 
         // list
-        org.springframework.http.HttpEntity<Void> listEntity = new org.springframework.http.HttpEntity<>(headers);
-        var listResp = rest.exchange("http://localhost:" + port + "/api/saved", org.springframework.http.HttpMethod.GET, listEntity, SavedTripDTO[].class);
-        assertThat(listResp.getStatusCode().is2xxSuccessful()).isTrue();
-        SavedTripDTO[] saved = listResp.getBody();
+        var listResult = mockMvc.perform(get("/api/saved").header("X-Client-Id", "test-client-1"))
+            .andExpect(status().is2xxSuccessful())
+            .andReturn();
+        SavedTripDTO[] saved = objectMapper.readValue(listResult.getResponse().getContentAsString(), SavedTripDTO[].class);
         assertThat(saved).isNotNull();
         assertThat(saved.length).isGreaterThanOrEqualTo(1);
 
         UUID savedId = saved[0].getId();
 
         // delete
-        var delResp = rest.exchange("http://localhost:" + port + "/api/saved/" + savedId, org.springframework.http.HttpMethod.DELETE, listEntity, Void.class);
-        assertThat(delResp.getStatusCode().is2xxSuccessful()).isTrue();
+        mockMvc.perform(delete("/api/saved/" + savedId).header("X-Client-Id", "test-client-1"))
+            .andExpect(status().is2xxSuccessful());
 
         // recent searches
-        var recentResp = rest.getForEntity("http://localhost:" + port + "/api/trips/recent?limit=5", List.class);
-        assertThat(recentResp.getStatusCode().is2xxSuccessful()).isTrue();
-        List<?> recs = recentResp.getBody();
+        var recentResult = mockMvc.perform(get("/api/trips/recent?limit=5").header("X-Client-Id", "test-client-1"))
+            .andExpect(status().is2xxSuccessful())
+            .andReturn();
+        List<?> recs = objectMapper.readValue(recentResult.getResponse().getContentAsString(), List.class);
         assertThat(recs).isNotNull();
         assertThat(recs.size()).isGreaterThanOrEqualTo(1);
     }

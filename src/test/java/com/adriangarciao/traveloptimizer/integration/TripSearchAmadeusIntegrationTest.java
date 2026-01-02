@@ -2,6 +2,7 @@ package com.adriangarciao.traveloptimizer.integration;
 
 import com.adriangarciao.traveloptimizer.dto.TripSearchRequestDTO;
 import com.adriangarciao.traveloptimizer.test.ThreadLeakDetectorExtension;
+import com.adriangarciao.traveloptimizer.test.CloseSpringContextExtension;
 import com.adriangarciao.traveloptimizer.test.support.WireMockMlServerExtension;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.client.WireMock;
@@ -32,7 +33,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.MOCK)
 @ActiveProfiles("test-no-security")
 @TestPropertySource(properties = {"travel.providers.flights=amadeus", "spring.cache.type=simple"})
-@ExtendWith({ThreadLeakDetectorExtension.class})
+@ExtendWith({ThreadLeakDetectorExtension.class, CloseSpringContextExtension.class})
 public class TripSearchAmadeusIntegrationTest {
 
     static WireMockMlServerExtension WMEXT = new WireMockMlServerExtension();

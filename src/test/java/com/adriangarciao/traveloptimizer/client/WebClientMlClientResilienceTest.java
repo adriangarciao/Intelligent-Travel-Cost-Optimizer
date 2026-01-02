@@ -21,8 +21,11 @@ import java.time.LocalDate;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-@ExtendWith({com.adriangarciao.traveloptimizer.test.ThreadLeakDetectorExtension.class})
-@SpringBootTest(classes = com.adriangarciao.traveloptimizer.client.WebClientMlClient.class)
+import com.adriangarciao.traveloptimizer.test.ThreadLeakDetectorExtension;
+import com.adriangarciao.traveloptimizer.test.CloseSpringContextExtension;
+
+@ExtendWith({com.adriangarciao.traveloptimizer.test.ThreadLeakDetectorExtension.class, com.adriangarciao.traveloptimizer.test.CloseSpringContextExtension.class})
+@SpringBootTest(classes = com.adriangarciao.traveloptimizer.client.WebClientMlClient.class, properties = {"ml.client=webclient"})
 public class WebClientMlClientResilienceTest {
     static WireMockMlServerExtension WMEXT = new WireMockMlServerExtension();
 

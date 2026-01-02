@@ -1,4 +1,4 @@
-export type OfferSnapshot = {
+ export type OfferSnapshot = {
   id: string
   tripOptionId?: string
   totalPrice?: number
