@@ -52,8 +52,20 @@ public class AmadeusFlightSearchProvider implements FlightSearchProvider {
     @Override
     @Cacheable(value = "amadeusFlights", key = "#request.origin + '|' + #request.destination + '|' + (#request.earliestDepartureDate != null ? #request.earliestDepartureDate.toString() : '') + '|' + (#request.earliestReturnDate != null ? #request.earliestReturnDate.toString() : '') + '|' + #request.numTravelers + '|' + (#request.maxBudget != null ? #request.maxBudget.toString() : '') + '|' + (#request.preferences != null && #request.preferences.getNonStopOnly() != null ? #request.preferences.getNonStopOnly().toString() : '')")
     public com.adriangarciao.traveloptimizer.provider.FlightSearchResult searchFlights(TripSearchRequestDTO request) {
+        return doSearchFlights(request, this.maxResults);
+    }
+
+    @Override
+    public com.adriangarciao.traveloptimizer.provider.FlightSearchResult searchFlightsWithLimit(TripSearchRequestDTO request, int maxResults) {
+        // Cap at 20 (Amadeus API max), but allow caller to request more than default
+        int effectiveMax = Math.max(2, Math.min(maxResults, 20));
+        log.info("Progressive fetch: searchFlightsWithLimit called with maxResults={} (effective={})", maxResults, effectiveMax);
+        return doSearchFlights(request, effectiveMax);
+    }
+
+    private com.adriangarciao.traveloptimizer.provider.FlightSearchResult doSearchFlights(TripSearchRequestDTO request, int effectiveMaxResults) {
         long start = System.currentTimeMillis();
-        log.info("Amadeus search start (timeoutMs={}ms maxResults={} origin={} dest={})", this.timeoutMs, this.maxResults, request.getOrigin(), request.getDestination());
+        log.info("Amadeus search start (timeoutMs={}ms maxResults={} origin={} dest={})", this.timeoutMs, effectiveMaxResults, request.getOrigin(), request.getDestination());
         try {
             String token = authClient.getAccessToken();
             // Observability: token acquired (do NOT log token itself)
@@ -61,8 +73,9 @@ public class AmadeusFlightSearchProvider implements FlightSearchProvider {
             if (this.debugAmadeus) {
                 log.info("Amadeus request params: originLocationCode={} destinationLocationCode={} departureDate={} returnDate={} adults={} nonStop={} max={} currencyCode={} maxPrice={}",
                         request.getOrigin(), request.getDestination(), request.getEarliestDepartureDate(), request.getEarliestReturnDate(), request.getNumTravelers(),
-                        (request.getPreferences() != null && request.getPreferences().isNonStopOnly()), this.maxResults, "USD", request.getMaxBudget());
+                        (request.getPreferences() != null && request.getPreferences().isNonStopOnly()), effectiveMaxResults, "USD", request.getMaxBudget());
             }
+            final int maxForQuery = effectiveMaxResults;
             WebClient.RequestHeadersSpec<?> reqSpec = webClient.get().uri(uriBuilder -> {
                 uriBuilder.path("/v2/shopping/flight-offers");
                 uriBuilder.queryParam("originLocationCode", request.getOrigin());
@@ -72,7 +85,7 @@ public class AmadeusFlightSearchProvider implements FlightSearchProvider {
                 if (request.getEarliestReturnDate() != null)
                     uriBuilder.queryParam("returnDate", request.getEarliestReturnDate().toString());
                 uriBuilder.queryParam("adults", String.valueOf(request.getNumTravelers()));
-                uriBuilder.queryParam("max", String.valueOf(this.maxResults));
+                uriBuilder.queryParam("max", String.valueOf(maxForQuery));
                 uriBuilder.queryParam("currencyCode", "USD");
                 if (request.getMaxBudget() != null)
                     uriBuilder.queryParam("maxPrice", request.getMaxBudget().toPlainString());
@@ -263,7 +276,7 @@ public class AmadeusFlightSearchProvider implements FlightSearchProvider {
                     .deepLink(null)
                     .build();
                 out.add(fo);
-                if (out.size() >= this.maxResults) break;
+                // API already limits via 'max' query param, no need to cap here
             } catch (Exception ex) {
                 // skip malformed offer
             }

@@ -112,6 +112,12 @@
 			<scope>test</scope>
 		</dependency>
 
+		<!-- Make JUnit API available at compile time for main-source test helper proxy -->
+		<dependency>
+			<groupId>org.junit.jupiter</groupId>
+			<artifactId>junit-jupiter-api</artifactId>
+		</dependency>
+
 		<!-- Provide javax.annotation for legacy PostConstruct usage on Java 17 -->
 		<dependency>
 			<groupId>javax.annotation</groupId>

@@ -1,0 +1,409 @@
+{
+  "searchId": "f35334de-d0a4-4c4e-8e43-ca946de7325b",
+  "page": 0,
+  "size": 10,
+  "totalOptions": 9,
+  "options": [
+    {
+      "tripOptionId": "06025e6c-9a45-4c7f-a3dd-75351cfbff56",
+      "totalPrice": 492.17,
+      "currency": "USD",
+      "flight": {
+        "airline": "Frontier",
+        "airlineCode": "F9",
+        "airlineName": "Frontier",
+        "flightNumber": "F9 1448 / F9 4732",
+        "stops": 1,
+        "duration": "PT9H39M",
+        "durationText": "9h 39m",
+        "segments": [
+          "SFO→ATL",
+          "ATL→JFK"
+        ]
+      },
+      "lodging": {
+        "hotelName": "Budget Inn",
+        "lodgingType": "Hotel",
+        "rating": 3.6,
+        "pricePerNight": 125,
+        "nights": 3
+      },
+      "valueScore": 0.8,
+      "mlRecommendation": {
+        "isGoodDeal": null,
+        "priceTrend": null,
+        "note": "Baseline rule used",
+        "action": "WAIT",
+        "trend": "stable",
+        "confidence": 0.55,
+        "reasons": [
+          "Baseline rule used"
+        ],
+        "goodDeal": false
+      },
+      "buyWait": {
+        "decision": "WAIT",
+        "confidence": 0.55,
+        "reasons": [
+          "Baseline rule used"
+        ],
+        "predictedPriceChangePct": null,
+        "timeHorizonDays": null,
+        "trend": "stable"
+      },
+      "valueScoreBreakdown": null
+    },
+    {
+      "tripOptionId": "f8f47e45-c952-4cb9-8844-b36b57164ae3",
+      "totalPrice": 497.77,
+      "currency": "USD",
+      "flight": {
+        "airline": "Frontier",
+        "airlineCode": "F9",
+        "airlineName": "Frontier",
+        "flightNumber": "F9 4156 / F9 3238",
+        "stops": 1,
+        "duration": "PT10H42M",
+        "durationText": "10h 42m",
+        "segments": [
+          "SFO→LAS",
+          "LAS→JFK"
+        ]
+      },
+      "lodging": {
+        "hotelName": "Budget Inn",
+        "lodgingType": "Hotel",
+        "rating": 3.6,
+        "pricePerNight": 125,
+        "nights": 3
+      },
+      "valueScore": 0.751,
+      "mlRecommendation": {
+        "isGoodDeal": null,
+        "priceTrend": null,
+        "note": "Baseline rule used",
+        "action": "WAIT",
+        "trend": "stable",
+        "confidence": 0.55,
+        "reasons": [
+          "Baseline rule used"
+        ],
+        "goodDeal": false
+      },
+      "buyWait": {
+        "decision": "WAIT",
+        "confidence": 0.55,
+        "reasons": [
+          "Baseline rule used"
+        ],
+        "predictedPriceChangePct": null,
+        "timeHorizonDays": null,
+        "trend": "stable"
+      },
+      "valueScoreBreakdown": null
+    },
+    {
+      "tripOptionId": "6970890d-c86a-4fc2-8f55-a306ad7624fc",
+      "totalPrice": 497.77,
+      "currency": "USD",
+      "flight": {
+        "airline": "Frontier",
+        "airlineCode": "F9",
+        "airlineName": "Frontier",
+        "flightNumber": "F9 4158 / F9 3238",
+        "stops": 1,
+        "duration": "PT17H14M",
+        "durationText": "17h 14m",
+        "segments": [
+          "SFO→LAS",
+          "LAS→JFK"
+        ]
+      },
+      "lodging": {
+        "hotelName": "Budget Inn",
+        "lodgingType": "Hotel",
+        "rating": 3.6,
+        "pricePerNight": 125,
+        "nights": 3
+      },
+      "valueScore": 0.536,
+      "mlRecommendation": {
+        "isGoodDeal": null,
+        "priceTrend": null,
+        "note": "Baseline rule used",
+        "action": "WAIT",
+        "trend": "stable",
+        "confidence": 0.55,
+        "reasons": [
+          "Baseline rule used"
+        ],
+        "goodDeal": false
+      },
+      "buyWait": {
+        "decision": "WAIT",
+        "confidence": 0.55,
+        "reasons": [
+          "Baseline rule used"
+        ],
+        "predictedPriceChangePct": null,
+        "timeHorizonDays": null,
+        "trend": "stable"
+      },
+      "valueScoreBreakdown": null
+    },
+    {
+      "tripOptionId": "01056e03-5df2-42bd-b356-2278221d7243",
+      "totalPrice": 612.17,
+      "currency": "USD",
+      "flight": {
+        "airline": "Frontier",
+        "airlineCode": "F9",
+        "airlineName": "Frontier",
+        "flightNumber": "F9 1448 / F9 4732",
+        "stops": 1,
+        "duration": "PT9H39M",
+        "durationText": "9h 39m",
+        "segments": [
+          "SFO→ATL",
+          "ATL→JFK"
+        ]
+      },
+      "lodging": {
+        "hotelName": "Demo Hotel",
+        "lodgingType": "Hotel",
+        "rating": 4.2,
+        "pricePerNight": 165,
+        "nights": 3
+      },
+      "valueScore": 0.494,
+      "mlRecommendation": {
+        "isGoodDeal": null,
+        "priceTrend": null,
+        "note": "Baseline rule used",
+        "action": "WAIT",
+        "trend": "stable",
+        "confidence": 0.55,
+        "reasons": [
+          "Baseline rule used"
+        ],
+        "goodDeal": false
+      },
+      "buyWait": {
+        "decision": "WAIT",
+        "confidence": 0.55,
+        "reasons": [
+          "Baseline rule used"
+        ],
+        "predictedPriceChangePct": null,
+        "timeHorizonDays": null,
+        "trend": "stable"
+      },
+      "valueScoreBreakdown": null
+    },
+    {
+      "tripOptionId": "1bc6648b-0925-4c23-8ce9-4b640bc89ef7",
+      "totalPrice": 617.77,
+      "currency": "USD",
+      "flight": {
+        "airline": "Frontier",
+        "airlineCode": "F9",
+        "airlineName": "Frontier",
+        "flightNumber": "F9 4156 / F9 3238",
+        "stops": 1,
+        "duration": "PT10H42M",
+        "durationText": "10h 42m",
+        "segments": [
+          "SFO→LAS",
+          "LAS→JFK"
+        ]
+      },
+      "lodging": {
+        "hotelName": "Demo Hotel",
+        "lodgingType": "Hotel",
+        "rating": 4.2,
+        "pricePerNight": 165,
+        "nights": 3
+      },
+      "valueScore": 0.445,
+      "mlRecommendation": {
+        "isGoodDeal": null,
+        "priceTrend": null,
+        "note": "Baseline rule used",
+        "action": "WAIT",
+        "trend": "stable",
+        "confidence": 0.55,
+        "reasons": [
+          "Baseline rule used"
+        ],
+        "goodDeal": false
+      },
+      "buyWait": {
+        "decision": "WAIT",
+        "confidence": 0.55,
+        "reasons": [
+          "Baseline rule used"
+        ],
+        "predictedPriceChangePct": null,
+        "timeHorizonDays": null,
+        "trend": "stable"
+      },
+      "valueScoreBreakdown": null
+    },
+    {
+      "tripOptionId": "9db985ee-edf4-4f5b-a8e5-7b197a70564e",
+      "totalPrice": 702.17,
+      "currency": "USD",
+      "flight": {
+        "airline": "Frontier",
+        "airlineCode": "F9",
+        "airlineName": "Frontier",
+        "flightNumber": "F9 1448 / F9 4732",
+        "stops": 1,
+        "duration": "PT9H39M",
+        "durationText": "9h 39m",
+        "segments": [
+          "SFO→ATL",
+          "ATL→JFK"
+        ]
+      },
+      "lodging": {
+        "hotelName": "Comfort Suites",
+        "lodgingType": "Hotel",
+        "rating": 4.5,
+        "pricePerNight": 195,
+        "nights": 3
+      },
+      "valueScore": 0.264,
+      "mlRecommendation": null,
+      "buyWait": {
+        "decision": "WAIT",
+        "confidence": 0.75,
+        "reasons": [
+          "Price is higher than many offers for this route/date.",
+          "Departure is within 14 days (prices usually rise)."
+        ],
+        "predictedPriceChangePct": null,
+        "timeHorizonDays": null,
+        "trend": "UNKNOWN"
+      },
+      "valueScoreBreakdown": null
+    },
+    {
+      "tripOptionId": "d678e2ff-644f-496a-8536-77c9890df0ab",
+      "totalPrice": 617.77,
+      "currency": "USD",
+      "flight": {
+        "airline": "Frontier",
+        "airlineCode": "F9",
+        "airlineName": "Frontier",
+        "flightNumber": "F9 4158 / F9 3238",
+        "stops": 1,
+        "duration": "PT17H14M",
+        "durationText": "17h 14m",
+        "segments": [
+          "SFO→LAS",
+          "LAS→JFK"
+        ]
+      },
+      "lodging": {
+        "hotelName": "Demo Hotel",
+        "lodgingType": "Hotel",
+        "rating": 4.2,
+        "pricePerNight": 165,
+        "nights": 3
+      },
+      "valueScore": 0.23,
+      "mlRecommendation": null,
+      "buyWait": {
+        "decision": "BUY",
+        "confidence": 0.55,
+        "reasons": [
+          "Price is average compared to other offers.",
+          "Departure is within 14 days (prices usually rise)."
+        ],
+        "predictedPriceChangePct": null,
+        "timeHorizonDays": null,
+        "trend": "UNKNOWN"
+      },
+      "valueScoreBreakdown": null
+    },
+    {
+      "tripOptionId": "8f8c9373-3424-4c47-b781-75f66ea32e83",
+      "totalPrice": 707.77,
+      "currency": "USD",
+      "flight": {
+        "airline": "Frontier",
+        "airlineCode": "F9",
+        "airlineName": "Frontier",
+        "flightNumber": "F9 4156 / F9 3238",
+        "stops": 1,
+        "duration": "PT10H42M",
+        "durationText": "10h 42m",
+        "segments": [
+          "SFO→LAS",
+          "LAS→JFK"
+        ]
+      },
+      "lodging": {
+        "hotelName": "Comfort Suites",
+        "lodgingType": "Hotel",
+        "rating": 4.5,
+        "pricePerNight": 195,
+        "nights": 3
+      },
+      "valueScore": 0.215,
+      "mlRecommendation": null,
+      "buyWait": {
+        "decision": "WAIT",
+        "confidence": 0.75,
+        "reasons": [
+          "Price is higher than many offers for this route/date.",
+          "Departure is within 14 days (prices usually rise)."
+        ],
+        "predictedPriceChangePct": null,
+        "timeHorizonDays": null,
+        "trend": "UNKNOWN"
+      },
+      "valueScoreBreakdown": null
+    },
+    {
+      "tripOptionId": "fbc36cf7-51da-4398-ab89-9a3ef07eab42",
+      "totalPrice": 707.77,
+      "currency": "USD",
+      "flight": {
+        "airline": "Frontier",
+        "airlineCode": "F9",
+        "airlineName": "Frontier",
+        "flightNumber": "F9 4158 / F9 3238",
+        "stops": 1,
+        "duration": "PT17H14M",
+        "durationText": "17h 14m",
+        "segments": [
+          "SFO→LAS",
+          "LAS→JFK"
+        ]
+      },
+      "lodging": {
+        "hotelName": "Comfort Suites",
+        "lodgingType": "Hotel",
+        "rating": 4.5,
+        "pricePerNight": 195,
+        "nights": 3
+      },
+      "valueScore": 0,
+      "mlRecommendation": null,
+      "buyWait": {
+        "decision": "WAIT",
+        "confidence": 0.75,
+        "reasons": [
+          "Price is higher than many offers for this route/date.",
+          "Departure is within 14 days (prices usually rise)."
+        ],
+        "predictedPriceChangePct": null,
+        "timeHorizonDays": null,
+        "trend": "UNKNOWN"
+      },
+      "valueScoreBreakdown": null
+    }
+  ]
+}

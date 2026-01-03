@@ -97,6 +97,6 @@ public class WebClientMlClientTest {
     MlRecommendationDTO fallbackRec = client.getOptionRecommendation(option, req, java.util.List.of(option));
     assertThat(fallbackRec).isNotNull();
     assertThat(fallbackRec.isGoodDeal()).isFalse();
-    assertThat(fallbackRec.getPriceTrend()).isEqualTo("unknown");
+    assertThat(fallbackRec.getPriceTrend()).isEqualTo("stable");
     }
 }

@@ -21,7 +21,21 @@ export type TripOptionDTO = {
   flight?: FlightDTO
   lodging?: LodgingDTO
   valueScore?: number
-  mlRecommendation?: { note?: string } | null
+  mlRecommendation?: {
+    action?: 'BUY' | 'WAIT' | string
+    trend?: 'likely_up' | 'likely_down' | 'stable' | string
+    confidence?: number
+    reasons?: string[]
+    note?: string
+  } | null
+  buyWait?: {
+    action?: 'BUY' | 'WAIT' | string
+    confidence?: number
+    reasons?: string[]
+    trend?: string
+    predictedPriceChangePct?: number
+    timeHorizonDays?: number
+  } | null
 }
 
 export type TripSearchResponseDTO = {

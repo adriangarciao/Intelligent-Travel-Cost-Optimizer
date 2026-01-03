@@ -19,4 +19,11 @@ public class TripOptionsPageDTO implements Serializable {
     private int size;
     private long totalOptions;
     private List<TripOptionSummaryDTO> options;
+    
+    /**
+     * Indicates whether more results might be available from the provider.
+     * When false, the client should show "No further options" instead of a next button.
+     */
+    @Builder.Default
+    private boolean hasMore = true;
 }

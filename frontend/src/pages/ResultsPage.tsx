@@ -39,6 +39,10 @@ export default function ResultsPage() {
   })()
 
   const totalElements = (data && ((data as any).totalElements ?? (data as any).totalOptions)) ?? options.length
+  
+  // Check if more results are available from the provider
+  // Default to true for backwards compatibility
+  const hasMore = (data as any)?.hasMore ?? true
 
   // compute deal scores once per searchId
   const scoreMap = useMemo(() => computeDealScores(options), [searchId, JSON.stringify(options.map(o => ({ id: o.id ?? o.tripOptionId, price: o.totalPrice })) )])
@@ -66,7 +70,11 @@ export default function ResultsPage() {
           {error && <div className="text-red-600">Error loading results: {(error as any)?.message ?? 'Unknown'}</div>}
 
           <div className="space-y-4">
-            {options.length === 0 && !isLoading && <div className="text-sm text-gray-500">No options found</div>}
+            {options.length === 0 && !isLoading && (
+              <div className="text-sm text-gray-500">
+                {page > 0 && !hasMore ? 'No further options available' : 'No options found'}
+              </div>
+            )}
             {options.map((opt: any) => {
               const key = opt.id ?? opt.optionId ?? opt.tripOptionId ?? JSON.stringify(opt)
               const info = scoreMap.get(opt.id ?? opt.tripOptionId ?? opt.optionId ?? key)
@@ -86,8 +94,22 @@ export default function ResultsPage() {
 
       <div className="flex items-center justify-between mt-6">
         <div>
-          <button className="px-3 py-1 border rounded mr-2" onClick={() => setPage((p) => Math.max(0, p - 1))}>Prev</button>
-          <button className="px-3 py-1 border rounded" onClick={() => setPage((p) => p + 1)}>Next</button>
+          <button 
+            className="px-3 py-1 border rounded mr-2 disabled:opacity-50" 
+            onClick={() => setPage((p) => Math.max(0, p - 1))}
+            disabled={page === 0}
+          >
+            Prev
+          </button>
+          <button 
+            className="px-3 py-1 border rounded disabled:opacity-50" 
+            onClick={() => setPage((p) => p + 1)}
+            disabled={!hasMore && options.length < size}
+            title={!hasMore && options.length < size ? 'No further options available' : ''}
+          >
+            Next
+          </button>
+          {!hasMore && <span className="ml-2 text-sm text-gray-500 italic">End of results</span>}
         </div>
         <div className="text-sm text-gray-500">Total: {totalElements ?? '—'}</div>
       </div>

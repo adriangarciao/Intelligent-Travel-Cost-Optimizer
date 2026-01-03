@@ -76,7 +76,9 @@ export async function getTripOptions(
       price: o.totalPrice,
       currency: o.currency || 'USD',
       valueScore: o.valueScore,
-      // flatten ML note
+      // flatten ML note and top-level ML fields so components can read them directly
+      mlRecommendation: o.mlRecommendation,
+      buyWait: o.buyWait,
       mlNote: o.mlRecommendation?.note,
       // provide lightweight summary fields used by TripCard
       flightSummary: o.flight?.airline ? `${o.flight.airline} ${o.flight.flightNumber ?? ''}`.trim() : undefined,
