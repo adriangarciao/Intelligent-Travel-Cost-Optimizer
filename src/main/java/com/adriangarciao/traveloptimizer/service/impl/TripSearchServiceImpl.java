@@ -4,6 +4,7 @@ import com.adriangarciao.traveloptimizer.dto.*;
 import lombok.extern.slf4j.Slf4j;
 import com.adriangarciao.traveloptimizer.mapper.TripOptionMapper;
 import com.adriangarciao.traveloptimizer.mapper.TripSearchMapper;
+import com.adriangarciao.traveloptimizer.model.FlightOption;
 import com.adriangarciao.traveloptimizer.model.TripOption;
 import com.adriangarciao.traveloptimizer.model.TripSearch;
 import com.adriangarciao.traveloptimizer.repository.TripOptionRepository;
@@ -422,8 +423,124 @@ public class TripSearchServiceImpl implements TripSearchService {
                 int safePage = Math.max(0, page);
                 String safeSortBy = (sortBy == null || sortBy.isBlank()) ? "valueScore" : sortBy;
                 Sort.Direction dir = ("asc".equalsIgnoreCase(sortDir)) ? Sort.Direction.ASC : Sort.Direction.DESC;
+                
+                // Load TripSearch to check pagination state
+                TripSearch tripSearch = null;
+                try {
+                        var tsOpt = tripSearchRepository.findById(searchId);
+                        if (tsOpt.isPresent()) {
+                                tripSearch = tsOpt.get();
+                        }
+                } catch (Throwable t) {
+                        log.warn("Failed to load TripSearch for progressive pagination: {}", t.toString());
+                }
+                
+                // Check if we need to fetch more offers from Amadeus
+                boolean flightExhausted = tripSearch != null && tripSearch.isFlightExhausted();
+                long existingCount = tripOptionRepository.findByTripSearchId(searchId, PageRequest.of(0, 1)).getTotalElements();
+                int requestedCount = (safePage + 1) * safeSize;
+                
+                log.info("Progressive pagination: searchId={} page={} size={} existingCount={} requestedCount={} flightExhausted={}", 
+                        searchId, safePage, safeSize, existingCount, requestedCount, flightExhausted);
+                
+                // Progressive fetch: if we need more offers and haven't exhausted the provider
+                if (!flightExhausted && existingCount < requestedCount && flightSearchProvider != null && tripSearch != null) {
+                        try {
+                                // Calculate how many to fetch: request enough to fill the requested page plus some buffer
+                                int fetchLimit = Math.min(20, requestedCount + safeSize); // Amadeus max is 20
+                                int previousFetchLimit = tripSearch.getFlightFetchLimit();
+                                
+                                // Only fetch if we haven't already tried with this limit
+                                if (fetchLimit > previousFetchLimit) {
+                                        log.info("Progressive fetch: fetching more offers (fetchLimit={} previousLimit={})", fetchLimit, previousFetchLimit);
+                                        
+                                        // Reconstruct the search request
+                                        com.adriangarciao.traveloptimizer.dto.TripSearchRequestDTO requestDto = 
+                                                com.adriangarciao.traveloptimizer.dto.TripSearchRequestDTO.builder()
+                                                        .origin(tripSearch.getOrigin())
+                                                        .destination(tripSearch.getDestination())
+                                                        .earliestDepartureDate(tripSearch.getEarliestDepartureDate())
+                                                        .latestDepartureDate(tripSearch.getLatestDepartureDate())
+                                                        .earliestReturnDate(tripSearch.getEarliestReturnDate())
+                                                        .latestReturnDate(tripSearch.getLatestReturnDate())
+                                                        .maxBudget(tripSearch.getMaxBudget())
+                                                        .numTravelers(tripSearch.getNumTravelers())
+                                                        .build();
+                                        
+                                        // Fetch with the new limit (bypasses cache)
+                                        var result = flightSearchProvider.searchFlightsWithLimit(requestDto, fetchLimit);
+                                        
+                                        if (result != null && result.getStatus() == com.adriangarciao.traveloptimizer.provider.ProviderStatus.OK && result.getOffers() != null && !result.getOffers().isEmpty()) {
+                                                // Get existing offers for deduplication
+                                                List<TripOption> existingOptions = tripOptionRepository.findByTripSearchId(searchId, PageRequest.of(0, 1000)).getContent();
+                                                java.util.Set<String> existingKeys = existingOptions.stream()
+                                                        .map(this::computeOfferKey)
+                                                        .collect(java.util.stream.Collectors.toSet());
+                                                
+                                                // Filter to only new unique offers
+                                                List<com.adriangarciao.traveloptimizer.provider.FlightOffer> newOffers = result.getOffers().stream()
+                                                        .filter(fo -> {
+                                                                String key = computeFlightOfferKey(fo);
+                                                                return !existingKeys.contains(key);
+                                                        })
+                                                        .collect(java.util.stream.Collectors.toList());
+                                                
+                                                log.info("Progressive fetch: got {} total offers, {} are new unique offers", 
+                                                        result.getOffers().size(), newOffers.size());
+                                                
+                                                if (!newOffers.isEmpty()) {
+                                                        // Convert and persist new offers
+                                                        for (var fo : newOffers) {
+                                                                try {
+                                                                        TripOption option = buildTripOptionFromFlightOffer(fo, tripSearch);
+                                                                        tripOptionRepository.save(option);
+                                                                } catch (Throwable t) {
+                                                                        log.warn("Failed to persist new offer: {}", t.toString());
+                                                                }
+                                                        }
+                                                        // Update existing count
+                                                        existingCount = tripOptionRepository.findByTripSearchId(searchId, PageRequest.of(0, 1)).getTotalElements();
+                                                        log.info("Progressive fetch: persisted {} new offers, total now={}", newOffers.size(), existingCount);
+                                                }
+                                                
+                                                // Mark exhausted if we got fewer offers than the API limit (Amadeus max is 20)
+                                                if (result.getOffers().size() < fetchLimit || newOffers.isEmpty()) {
+                                                        log.info("Progressive fetch: marking flight exhausted (got={} limit={} newUnique={})", 
+                                                                result.getOffers().size(), fetchLimit, newOffers.size());
+                                                        flightExhausted = true;
+                                                        tripSearch.setFlightExhausted(true);
+                                                }
+                                        } else {
+                                                // No results or error - mark exhausted
+                                                log.info("Progressive fetch: no results or error, marking exhausted");
+                                                flightExhausted = true;
+                                                tripSearch.setFlightExhausted(true);
+                                        }
+                                        
+                                        // Update fetch limit
+                                        tripSearch.setFlightFetchLimit(fetchLimit);
+                                        tripSearchRepository.save(tripSearch);
+                                } else {
+                                        log.info("Progressive fetch: already tried with fetchLimit={}, not re-fetching", previousFetchLimit);
+                                }
+                        } catch (Throwable t) {
+                                log.warn("Progressive fetch failed: {}", t.toString());
+                        }
+                }
+                
+                // Now query the database for the requested page
                 Page<TripOption> p = tripOptionRepository.findByTripSearchId(searchId, PageRequest.of(safePage, safeSize, Sort.by(dir, safeSortBy)));
                 List<com.adriangarciao.traveloptimizer.dto.TripOptionSummaryDTO> content = p.getContent().stream().map(tripOptionMapper::toDto).collect(Collectors.toList());
+                
+                // Determine hasMore: false if exhausted AND this page is empty or partial
+                boolean hasMore = !flightExhausted || (p.hasNext());
+                if (content.isEmpty() && flightExhausted) {
+                        hasMore = false;
+                }
+                
+                log.info("Progressive pagination result: page={} returned={} totalInDb={} hasMore={} exhausted={}", 
+                        safePage, content.size(), p.getTotalElements(), hasMore, flightExhausted);
+                
                 // Attach transient ML/baseline buyWait to options when serving GET /{searchId}/options
                 try {
                         if (content != null && !content.isEmpty()) {
@@ -528,6 +645,7 @@ public class TripSearchServiceImpl implements TripSearchService {
                                 .size(safeSize)
                                 .totalOptions(p.getTotalElements())
                                 .options(content)
+                                .hasMore(hasMore)
                                 .build();
         }
 
@@ -568,5 +686,74 @@ public class TripSearchServiceImpl implements TripSearchService {
                 } catch (Throwable t) {
                         log.warn("Failed to record price observation: {}", t.toString());
                 }
+        }
+
+        /**
+         * Compute a deduplication key for an existing TripOption.
+         * Key is based on airline, flight number, price, and segments.
+         */
+        private String computeOfferKey(TripOption option) {
+                if (option == null || option.getFlightOption() == null) {
+                        return "";
+                }
+                var fo = option.getFlightOption();
+                String airline = fo.getAirlineCode() != null ? fo.getAirlineCode() : "";
+                String flightNum = fo.getFlightNumber() != null ? fo.getFlightNumber() : "";
+                String price = option.getTotalPrice() != null ? option.getTotalPrice().toPlainString() : "";
+                String segments = fo.getSegments() != null ? String.join(",", fo.getSegments()) : "";
+                return airline + "|" + flightNum + "|" + price + "|" + segments;
+        }
+
+        /**
+         * Compute a deduplication key for a FlightOffer from the provider.
+         * Must match the format used by computeOfferKey() for proper deduplication.
+         */
+        private String computeFlightOfferKey(com.adriangarciao.traveloptimizer.provider.FlightOffer fo) {
+                if (fo == null) {
+                        return "";
+                }
+                String airline = fo.getAirlineCode() != null ? fo.getAirlineCode() : "";
+                String flightNum = fo.getFlightNumber() != null ? fo.getFlightNumber() : "";
+                String price = fo.getPrice() != null ? fo.getPrice().toPlainString() : "";
+                String segments = fo.getSegments() != null ? String.join(",", fo.getSegments()) : "";
+                return airline + "|" + flightNum + "|" + price + "|" + segments;
+        }
+
+        /**
+         * Build a TripOption entity from a FlightOffer for progressive pagination.
+         * Creates a flight-only option (no lodging) with a basic value score.
+         */
+        private TripOption buildTripOptionFromFlightOffer(com.adriangarciao.traveloptimizer.provider.FlightOffer fo, TripSearch tripSearch) {
+                FlightOption flightOption = FlightOption.builder()
+                        .airline(fo.getAirlineName() != null ? fo.getAirlineName() : fo.getAirline())
+                        .airlineCode(fo.getAirlineCode())
+                        .airlineName(fo.getAirlineName())
+                        .flightNumber(fo.getFlightNumber())
+                        .stops(fo.getStops())
+                        .duration(Duration.ofMinutes(fo.getDurationMinutes()))
+                        .segments(fo.getSegments() != null && !fo.getSegments().isEmpty() 
+                                ? fo.getSegments() 
+                                : List.of(tripSearch.getOrigin() + "->" + tripSearch.getDestination()))
+                        .price(fo.getPrice())
+                        .build();
+
+                // Calculate a basic value score based on price and stops
+                // This is simplified since we don't have the full context of all options
+                double baseScore = 0.5; // midpoint score
+                if (fo.getStops() == 0) {
+                        baseScore += 0.1; // bonus for non-stop
+                } else {
+                        baseScore -= fo.getStops() * 0.05; // penalty per stop
+                }
+                baseScore = Math.max(0.0, Math.min(1.0, baseScore));
+
+                return TripOption.builder()
+                        .tripSearch(tripSearch)
+                        .flightOption(flightOption)
+                        .lodgingOption(null) // flight-only option
+                        .currency(fo.getCurrency() != null ? fo.getCurrency() : "USD")
+                        .totalPrice(fo.getPrice())
+                        .valueScore(baseScore)
+                        .build();
         }
 }

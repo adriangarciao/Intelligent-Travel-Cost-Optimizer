@@ -59,6 +59,23 @@ public class TripSearch {
     @Column(name = "created_at")
     private Instant createdAt;
 
+    /**
+     * Tracks how many flight offers have been fetched from the provider so far.
+     * Used for progressive pagination - when more results are needed, we fetch
+     * with a higher limit.
+     */
+    @Column(name = "flight_fetch_limit")
+    @Builder.Default
+    private int flightFetchLimit = 0;
+
+    /**
+     * True if the provider has been exhausted (no more unique offers available).
+     * Set when a fetch returns fewer new offers than expected or returns duplicates only.
+     */
+    @Column(name = "flight_exhausted")
+    @Builder.Default
+    private boolean flightExhausted = false;
+
     @OneToMany(mappedBy = "tripSearch", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     private List<TripOption> options;
 
