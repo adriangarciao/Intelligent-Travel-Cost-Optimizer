@@ -53,6 +53,16 @@ public class TripOptionMapper {
             f.setSegments(java.util.List.of());
             dto.setFlight(f);
         }
+        // map persisted ML recommendation JSON back into DTO if present
+        if (entity.getMlRecommendationJson() != null && !entity.getMlRecommendationJson().isBlank()) {
+            try {
+                com.fasterxml.jackson.databind.ObjectMapper om = new com.fasterxml.jackson.databind.ObjectMapper();
+                com.adriangarciao.traveloptimizer.dto.MlRecommendationDTO ml = om.readValue(entity.getMlRecommendationJson(), com.adriangarciao.traveloptimizer.dto.MlRecommendationDTO.class);
+                dto.setMlRecommendation(ml);
+            } catch (Exception e) {
+                // ignore parse errors
+            }
+        }
 
         // map lodging option; provide fallback object if missing
         if (entity.getLodgingOption() != null) {

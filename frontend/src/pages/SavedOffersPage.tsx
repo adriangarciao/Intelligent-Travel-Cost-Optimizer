@@ -111,6 +111,18 @@ export default function SavedOffersPage() {
           opt.valueScore = 0
         }
       }
+      // preserve buyWait if present from server / saved option
+      try {
+        opt.buyWait = opt.buyWait || (originalOption && (originalOption as any).buyWait) || (o && (o as any).buyWait) || undefined
+      } catch (e) {
+        opt.buyWait = undefined
+      }
+      // preserve mlRecommendation as well
+      try {
+        opt.mlRecommendation = opt.mlRecommendation || (originalOption && (originalOption as any).mlRecommendation) || (o && (o as any).mlRecommendation) || undefined
+      } catch (e) {
+        opt.mlRecommendation = undefined
+      }
       opt.__raw = opt
       return { option: opt as TripOptionDTO, legacy: false }
     }
@@ -133,6 +145,7 @@ export default function SavedOffersPage() {
       },
       lodging: undefined,
       valueScore: o.valueScore || 0,
+      buyWait: (o && (o as any).buyWait) || undefined,
       __raw: o
     }
     return { option: opt as TripOptionDTO, legacy: true }

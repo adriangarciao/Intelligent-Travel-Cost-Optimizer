@@ -45,6 +45,9 @@ public class WebClientMlClient implements MlClient {
         this.circuitBreaker = cbr.circuitBreaker("mlService");
     }
 
+    @org.springframework.beans.factory.annotation.Value("${ml.timeout-ms:2000}")
+    private int mlTimeoutMs = 2000;
+
     // Secondary constructor for tests to inject a mockable WebClient and explicit resilience instances
     public WebClientMlClient(WebClient webClient, String baseUrl, Retry retry, CircuitBreaker circuitBreaker) {
         this.baseUrl = baseUrl;
@@ -127,8 +130,8 @@ public class WebClientMlClient implements MlClient {
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue(body)
                 .retrieve()
-                .bodyToMono(MlRecommendationDTO.class)
-                .timeout(Duration.ofSeconds(5))
+            .bodyToMono(MlRecommendationDTO.class)
+            .timeout(Duration.ofMillis(this.mlTimeoutMs))
                 .block();
 
         try {
@@ -150,17 +153,33 @@ public class WebClientMlClient implements MlClient {
             log.warn("ML option-recommendation failed after retries/circuit for option: {}", t.toString());
         }
 
-        // fallback
+        // fallback: deterministic baseline similar to SimpleMlClient
+        double pricePercentile = 0.5;
+        if (option.getTotalPrice() != null && allOptions != null && !allOptions.isEmpty()) {
+            int less = 0;
+            double price = option.getTotalPrice().doubleValue();
+            for (TripOptionSummaryDTO o : allOptions) {
+                double p = o.getTotalPrice() != null ? o.getTotalPrice().doubleValue() : 0.0;
+                if (p < price) less++;
+            }
+            pricePercentile = ((double) less) / allOptions.size();
+        }
+        long daysToDepartureFallback = java.time.temporal.ChronoUnit.DAYS.between(java.time.LocalDate.now(), request.getEarliestDepartureDate());
+        String action = (daysToDepartureFallback <= 7 && pricePercentile <= 0.35) ? "BUY" : "WAIT";
+        String trend = "stable";
+        double confidence = 0.55;
+        java.util.List<String> reasons = java.util.List.of("Baseline rule used");
+
         MlRecommendationDTO fallback = MlRecommendationDTO.builder()
-                .action("WAIT")
-                .trend("stable")
-                .confidence(0.0)
-                .reasons(java.util.List.of("ML service unavailable"))
-                .note("ML unavailable")
+                .action(action)
+                .trend(trend)
+                .confidence(confidence)
+                .reasons(reasons)
+                .note("Baseline rule used")
                 .build();
-        // populate legacy fields for frontend compatibility
-        fallback.setIsGoodDeal(false);
-        fallback.setPriceTrend("unknown");
+        // legacy fields
+        fallback.setIsGoodDeal("BUY".equalsIgnoreCase(action));
+        fallback.setPriceTrend("stable");
         return fallback;
     }
 

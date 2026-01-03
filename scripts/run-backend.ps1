@@ -2,7 +2,9 @@ param(
   [string]$Profile = 'dev-no-security',
   [ValidateSet('h2','postgres')][string]$Db = 'h2',
   [switch]$Background,
-  [switch]$SkipBuild
+  [switch]$SkipBuild,
+  [switch]$Amadeus,
+  [switch]$NoMl
 )
 
 function Load-EnvFile {
@@ -66,6 +68,21 @@ if (-not $env:SPRING_DATASOURCE_URL) {
 if (-not $env:AMADEUS_API_KEY -and $env:API_KEY) { Set-Item Env:AMADEUS_API_KEY $env:API_KEY }
 if (-not $env:AMADEUS_API_SECRET -and $env:API_SECRET) { Set-Item Env:AMADEUS_API_SECRET $env:API_SECRET }
 
+# Enable Amadeus provider if -Amadeus flag or if postgres DB with Amadeus keys present
+if ($Amadeus -or ($Db -eq 'postgres' -and $env:AMADEUS_API_KEY -and $env:AMADEUS_API_SECRET)) {
+  Set-Item Env:TRAVEL_PROVIDERS_FLIGHTS 'amadeus'
+  Write-Host "Amadeus provider enabled (TRAVEL_PROVIDERS_FLIGHTS=amadeus)"
+}
+
+# Enable ML by default unless -NoMl flag is provided
+if ($NoMl) {
+  Set-Item Env:ML_ENABLED 'false'
+  Write-Host "ML disabled (ML_ENABLED=false)"
+} else {
+  Set-Item Env:ML_ENABLED 'true'
+  Write-Host "ML enabled (ML_ENABLED=true)"
+}
+
 if ($SkipBuild) {
   Write-Host 'Skipping mvn build (flag -SkipBuild provided)'
 } else {
@@ -108,6 +125,7 @@ Write-Host '========================================'
 Write-Host "Jar:       $jarPath"
 Write-Host "Profile:   $Profile"
 Write-Host "DB Mode:   $Db"
+Write-Host "ML:        $($env:ML_ENABLED)"
 Write-Host "Providers: $($env:TRAVEL_PROVIDERS_FLIGHTS)"
 Write-Host "Amadeus Key:    $(MaskSecret $env:AMADEUS_API_KEY)"
 Write-Host "Amadeus Secret: $(MaskSecret $env:AMADEUS_API_SECRET)"

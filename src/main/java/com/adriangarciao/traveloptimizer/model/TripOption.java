@@ -36,6 +36,9 @@ public class TripOption {
     @Transient
     private java.util.Map<String, Double> valueScoreBreakdown;
 
+    @Column(name = "ml_recommendation", columnDefinition = "text")
+    private String mlRecommendationJson;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "trip_search_id")
     private TripSearch tripSearch;

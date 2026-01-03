@@ -16,12 +16,25 @@ type Props = {
 
 export type TripCardProps = Props
 
-export default function TripCard({ searchId, option, onSave, isSaved, }: Props & { expandedOverride?: boolean, dealScore?: number, dealLabel?: string, percentileText?: string }) {
+export default function TripCard({ searchId, option, onSave, isSaved, expandedOverride, dealScore, dealLabel, percentileText, }: Props & { expandedOverride?: boolean, dealScore?: number, dealLabel?: string, percentileText?: string }) {
   const optionId = option.id || JSON.stringify(option)
   const totalPrice = option.totalPrice ?? 0
   const currency = option.currency || 'USD'
   const valueScore = option.valueScore ?? '—'
 
+  const mlRec = (option as any).mlRecommendation ?? (option as any).buyWait ?? null
+  
+  // Normalize action and trend for display
+  const actionRaw = (mlRec && (mlRec.action ?? mlRec.decision)) || 'WAIT'
+  const action = String(actionRaw || '').toUpperCase()
+  let actionClass = 'bg-yellow-100 text-yellow-800'
+  if (action === 'BUY') actionClass = 'bg-green-100 text-green-800'
+  else if (action === 'WAIT') actionClass = 'bg-red-100 text-red-800'
+
+  const rawTrend = (mlRec && mlRec.trend) || 'stable'
+  const trend = (typeof rawTrend === 'string') && rawTrend === rawTrend.toUpperCase()
+    ? rawTrend
+    : (typeof rawTrend === 'string' ? (rawTrend.charAt(0).toUpperCase() + rawTrend.slice(1).toLowerCase()) : rawTrend)
   // Prefer the structured `flight` object. Some servers return a flattened `flightSummary` string;
   // avoid treating that string as the flight object.
   const flight: FlightSummary | undefined = (typeof (option as any).flight === 'object' && (option as any).flight)
@@ -54,8 +67,6 @@ export default function TripCard({ searchId, option, onSave, isSaved, }: Props &
   const [showShare, setShowShare] = React.useState(false)
 
   // support external control to force expansion (e.g. open from a notification)
-  // read `expandedOverride` from the props object passed in (TypeScript single-site typing above)
-  const expandedOverride = (arguments[0] as any)?.expandedOverride as boolean | undefined
   useEffect(() => {
     if (typeof expandedOverride === 'boolean') setExpanded(expandedOverride)
   }, [expandedOverride])
@@ -228,30 +239,45 @@ export default function TripCard({ searchId, option, onSave, isSaved, }: Props &
                 </div>
               )}
               {/* Deal meter: render under breakdown or segments */}
-              <DealMeter dealScore={(arguments[0] as any)?.dealScore ?? null} label={(arguments[0] as any)?.dealLabel} percentileText={(arguments[0] as any)?.percentileText} />
+              <DealMeter dealScore={dealScore ?? null} label={dealLabel} percentileText={percentileText} />
               {/* ML Buy/Wait recommendation */}
               <div className="mt-3 border-t pt-3">
                 <div className="text-sm font-medium text-gray-800">Buy/Wait Recommendation</div>
-                {option.mlRecommendation ? (
-                  <div className="mt-2 text-sm text-gray-700">
-                    <div className="flex items-center gap-3">
-                      <div className={`px-2 py-1 rounded text-xs font-semibold ${option.mlRecommendation.action === 'BUY' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
-                        {option.mlRecommendation.action ?? 'WAIT'}
+                {mlRec ? (
+                    <div className="mt-2 text-sm text-gray-700">
+                      <div className="flex items-center gap-3">
+                        <div className={`px-2 py-1 rounded text-xs font-semibold ${actionClass}`}>
+                          {action}
+                        </div>
+                        <div className="text-xs text-gray-600">Confidence: {((mlRec.confidence ?? 0) * 100).toFixed(0)}%</div>
+                        <div className="text-xs text-gray-500">Trend: {trend}</div>
                       </div>
-                      <div className="text-xs text-gray-600">Confidence: {((option.mlRecommendation.confidence ?? 0) * 100).toFixed(0)}%</div>
-                      <div className="text-xs text-gray-500">Trend: {option.mlRecommendation.trend ?? 'stable'}</div>
+                      {mlRec.reasons && mlRec.reasons.length > 0 && (
+                        <div className="mt-2 text-sm">
+                          <div className="text-xs font-medium">Why?</div>
+                          <ul className="list-disc list-inside text-xs text-gray-700">
+                            {mlRec.reasons.map((r: any, idx: number) => <li key={idx}>{r}</li>)}
+                          </ul>
+                        </div>
+                      )}
                     </div>
-                    {option.mlRecommendation.reasons && option.mlRecommendation.reasons.length > 0 && (
-                      <div className="mt-2 text-sm">
-                        <div className="text-xs font-medium">Why?</div>
-                        <ul className="list-disc list-inside text-xs text-gray-700">
-                          {option.mlRecommendation.reasons.map((r, idx) => <li key={idx}>{r}</li>)}
-                        </ul>
+                  ) : (
+                  // Fallback: if external dealLabel/score was provided (from cached scoring), show that instead
+                  (dealLabel || typeof dealScore === 'number' || percentileText) ? (
+                    <div className="mt-2 text-sm text-gray-700">
+                      <div className="flex items-center gap-3">
+                        <div className="text-sm font-semibold">{dealLabel ?? 'Recommendation'}</div>
+                        {typeof dealScore === 'number' && (
+                          <div className="text-xs text-gray-600">Score: {(dealScore * 100).toFixed(0)}%</div>
+                        )}
+                        {percentileText && (
+                          <div className="text-xs text-gray-500">{percentileText}</div>
+                        )}
                       </div>
-                    )}
-                  </div>
-                ) : (
-                  <div className="mt-2 text-sm text-gray-600">No recommendation available</div>
+                    </div>
+                  ) : (
+                    <div className="mt-2 text-sm text-gray-600">No recommendation available</div>
+                  )
                 )}
               </div>
             </div>
