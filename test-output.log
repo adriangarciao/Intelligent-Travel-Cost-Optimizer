@@ -1,0 +1,29 @@
+[INFO] Scanning for projects...
+[INFO] 
+[INFO] -----------------< com.adriangarciao:traveloptimizer >------------------
+[INFO] Building traveloptimizer 0.0.1-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- enforcer:3.1.0:enforce (enforce-java-and-maven) @ traveloptimizer ---
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ traveloptimizer ---
+[INFO] Copying 3 resources from src\main\resources to target\classes
+[INFO] Copying 10 resources from src\main\resources to target\classes
+[INFO] 
+[INFO] --- compiler:3.10.1:compile (default-compile) @ traveloptimizer ---
+[INFO] Nothing to compile - all classes are up to date
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ traveloptimizer ---
+[INFO] Copying 5 resources from src\test\resources to target\test-classes
+[INFO] 
+[INFO] --- compiler:3.10.1:testCompile (default-testCompile) @ traveloptimizer ---
+[INFO] Changes detected - recompiling the module!
+[INFO] Compiling 28 source files to C:\Users\garci\dev\traveloptimizer\target\test-classes
+[INFO] 
+[INFO] --- surefire:3.5.4:test (default-test) @ traveloptimizer ---
+[INFO] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
+[INFO] 
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------

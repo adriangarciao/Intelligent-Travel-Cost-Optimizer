@@ -30,6 +30,12 @@ public class SimpleMlClient implements MlClient {
     @Value("${ml.timeout-ms:2000}")
     private int mlTimeoutMs;
 
+    @Value("${ml.enabled:false}")
+    private boolean mlEnabled;
+
+    /** Track if we've already logged an ML unavailable message to avoid log spam. */
+    private volatile boolean mlUnavailableLogged = false;
+
     private RestTemplate restTemplate() {
         org.springframework.http.client.SimpleClientHttpRequestFactory rf =
                 new org.springframework.http.client.SimpleClientHttpRequestFactory();
@@ -40,6 +46,10 @@ public class SimpleMlClient implements MlClient {
 
     @Override
     public MlBestDateWindowDTO getBestDateWindow(TripSearchRequestDTO req) {
+        // Skip ML call if disabled - return baseline immediately
+        if (!mlEnabled) {
+            return MlBestDateWindowDTO.builder().confidence(0.0).build();
+        }
         try {
             String url = mlBaseUrl + "/predict/best-date-window";
             Map<String, Object> payload = new HashMap<>();
@@ -70,7 +80,8 @@ public class SimpleMlClient implements MlClient {
         } catch (HttpStatusCodeException he) {
             log.warn("ML best-date-window HTTP error: {}", he.getStatusCode());
         } catch (Throwable t) {
-            log.warn("ML best-date-window error: {}", t.toString());
+            // Log connection errors at DEBUG level to reduce noise when ML service is unavailable
+            logMlUnavailable("best-date-window", t);
         }
         return MlBestDateWindowDTO.builder().confidence(0.0).build();
     }
@@ -80,6 +91,10 @@ public class SimpleMlClient implements MlClient {
             TripOptionSummaryDTO option,
             TripSearchRequestDTO request,
             List<TripOptionSummaryDTO> allOptions) {
+        // Skip ML call if disabled - return baseline immediately
+        if (!mlEnabled) {
+            return buildBaselineRecommendation(option, request, allOptions);
+        }
         try {
             Map<String, Object> features = new HashMap<>();
             features.put(
@@ -138,9 +153,18 @@ public class SimpleMlClient implements MlClient {
         } catch (HttpStatusCodeException he) {
             log.warn("ML option recommendation HTTP error: {}", he.getStatusCode());
         } catch (Throwable t) {
-            log.warn("ML option recommendation error: {}", t.toString());
+            // Log connection errors at DEBUG level to reduce noise when ML service is unavailable
+            logMlUnavailable("option-recommendation", t);
         }
 
+        return buildBaselineRecommendation(option, request, allOptions);
+    }
+
+    /** Build a baseline recommendation when ML service is unavailable. */
+    private MlRecommendationDTO buildBaselineRecommendation(
+            TripOptionSummaryDTO option,
+            TripSearchRequestDTO request,
+            List<TripOptionSummaryDTO> allOptions) {
         double pricePercentile = 0.5;
         if (option.getTotalPrice() != null && allOptions != null && !allOptions.isEmpty()) {
             int less = 0;
@@ -166,6 +190,19 @@ public class SimpleMlClient implements MlClient {
                 .reasons(reasons)
                 .note("Baseline rule used")
                 .build();
+    }
+
+    /** Log ML unavailable message once to avoid log spam. */
+    private void logMlUnavailable(String endpoint, Throwable t) {
+        if (!mlUnavailableLogged) {
+            log.info(
+                    "ML service unavailable at {} ({}). Using baseline recommendations. "
+                            + "This message will not repeat.",
+                    mlBaseUrl,
+                    endpoint);
+            mlUnavailableLogged = true;
+        }
+        log.debug("ML {} error: {}", endpoint, t.toString());
     }
 
     @PostConstruct

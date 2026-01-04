@@ -111,8 +111,8 @@ export default function ComparePage() {
         <div className="p-4 bg-white rounded shadow">
           <div className="text-sm text-gray-600 mb-3">Select at least 2 flights to compare.</div>
           <div className="flex gap-2">
-            <button className="px-3 py-1 bg-blue-600 text-white rounded" onClick={() => navigate(-1)}>Back to results</button>
-            <button className="px-3 py-1 border rounded" onClick={() => clear()}>Clear selection</button>
+            <button className="btn" onClick={() => navigate(-1)}>Back to results</button>
+            <button className="btn" onClick={() => clear()}>Clear selection</button>
           </div>
         </div>
       </div>
@@ -129,9 +129,9 @@ export default function ComparePage() {
       <div className="mb-4 flex items-center justify-between">
         <h2 className="text-xl font-semibold">Compare Flights</h2>
         <div className="flex gap-2">
-          <button className="px-3 py-1 border rounded" onClick={() => navigate(-1)}>Back</button>
-          <button className="px-3 py-1 border rounded" onClick={() => clear()}>Clear</button>
-          <button className="px-3 py-1 border rounded" onClick={() => setShowShare(true)}>Share / Export</button>
+          <button className="btn" onClick={() => navigate(-1)}>Back</button>
+          <button className="btn" onClick={() => clear()}>Clear</button>
+          <button className="btn" onClick={() => setShowShare(true)}>Share / Export</button>
         </div>
       </div>
 
@@ -143,59 +143,72 @@ export default function ComparePage() {
           const dur = parseDurationMinutes(it.flight?.durationText)
           const isShortest = (dur ?? Infinity) === shortestDuration
 
+          const loaded = Boolean(it.flight && ((Array.isArray(it.flight.segments) && it.flight.segments.length > 0) || it.flight.flightNumber))
+
           return (
-            <div key={it.id} className="p-4 bg-white rounded shadow">
-              <div className="flex items-center justify-between mb-2">
+            <div key={it.id} className="p-4 card">
+              {!loaded ? (
                 <div>
-                  <div className="font-medium">{it.flight?.airlineName ?? it.flight?.airline ?? 'Flight'}</div>
-                  <div className="text-xs text-gray-500">{it.flight?.flightNumber ?? ''}</div>
+                  <div className="skeleton h-6 w-40 mb-3 rounded"></div>
+                  <div className="skeleton h-4 w-28 mb-2 rounded"></div>
+                  <div className="skeleton h-3 w-full mb-1 rounded"></div>
+                  <div className="skeleton h-3 w-3/4 mt-2 rounded"></div>
                 </div>
-                <div className="text-right">
-                  <div className="text-lg font-semibold">{it.currency} {it.totalPrice}</div>
-                  {isBestPrice && <div className="text-xs text-green-600">Lowest price</div>}
-                  {isBestValue && <div className="text-xs text-indigo-600">Best value</div>}
-                  {/* Top % (Deal) badge: based on computeDealScores (price-based percentile). */}
-                  {(() => {
-                    const info = scoreMap.get(it.id)
-                    const pctText = info?.percentileText || ''
-                    if (!pctText) return null
-                    const rank = valueRank.map.get(it.id) ?? '?'
-                    const total = valueRank.total || items.length
-                    return (
-                      <div className="mt-1 text-xs text-gray-700 flex items-center gap-3">
-                        <div className="px-2 py-0.5 bg-gray-100 rounded text-xs">{pctText} (Deal)</div>
-                        <div className="px-2 py-0.5 bg-gray-100 rounded text-xs">Rank {rank} / {total} (Value)</div>
-                        <svg className="text-gray-400" width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" title="Deal percentile: based on price (cheapest = best). Rank: based on Value Score (higher = better) within this compare set.">
-                          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z" fill="#E5E7EB" />
-                          <path d="M11 17h2v-6h-2v6zm0-8h2V7h-2v2z" fill="#9CA3AF" />
-                        </svg>
-                      </div>
-                    )
-                  })()}
-                </div>
-              </div>
+              ) : (
+                <>
+                  <div className="flex items-center justify-between mb-2">
+                    <div>
+                      <div className="font-medium">{it.flight?.airlineName ?? it.flight?.airline ?? 'Flight'}</div>
+                      <div className="text-xs text-gray-500">{it.flight?.flightNumber ?? ''}</div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-lg font-semibold">{it.currency} {it.totalPrice}</div>
+                      {isBestPrice && <div className="text-xs text-green-600">Lowest price</div>}
+                      {isBestValue && <div className="text-xs text-indigo-600">Best value</div>}
+                      {/* Top % (Deal) badge: based on computeDealScores (price-based percentile). */}
+                      {(() => {
+                        const info = scoreMap.get(it.id)
+                        const pctText = info?.percentileText || ''
+                        if (!pctText) return null
+                        const rank = valueRank.map.get(it.id) ?? '?'
+                        const total = valueRank.total || items.length
+                        return (
+                          <div className="mt-1 text-xs text-gray-700 flex items-center gap-3">
+                            <div className="px-2 py-0.5 bg-gray-100 rounded text-xs">{pctText} (Deal)</div>
+                            <div className="px-2 py-0.5 bg-gray-100 rounded text-xs">Rank {rank} / {total} (Value)</div>
+                            <svg className="text-gray-400" width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" title="Deal percentile: based on price (cheapest = best). Rank: based on Value Score (higher = better) within this compare set.">
+                              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z" fill="#E5E7EB" />
+                              <path d="M11 17h2v-6h-2v6zm0-8h2V7h-2v2z" fill="#9CA3AF" />
+                            </svg>
+                          </div>
+                        )
+                      })()}
+                    </div>
+                  </div>
 
-              <div className="mb-2">
-                <DealMeter dealScore={it.valueScore ?? null} showPercentile={false} />
-              </div>
+                  <div className="mb-2">
+                    <DealMeter dealScore={it.valueScore ?? null} showPercentile={false} />
+                  </div>
 
-              <div className="text-sm mb-2">Stops: {typeof it.flight?.stops === 'number' ? (it.flight.stops === 0 ? 'Nonstop' : String(it.flight.stops)) : '—'}</div>
-              <div className="text-sm mb-2">Duration: {it.flight?.durationText ?? '—'}</div>
+                  <div className="text-sm mb-2">Stops: {typeof it.flight?.stops === 'number' ? (it.flight.stops === 0 ? 'Nonstop' : String(it.flight.stops)) : '—'}</div>
+                  <div className="text-sm mb-2">Duration: {it.flight?.durationText ?? '—'}</div>
 
-              <div className="mt-3">
-                <div className="text-sm font-medium mb-1">Segments</div>
-                <ul className="text-sm list-inside list-decimal">
-                  {(it.flight?.segments && Array.isArray(it.flight.segments) && it.flight.segments.length > 0) ? (
-                    it.flight.segments.map((s: any, i: number) => (
-                      <li key={i} className="py-1">
-                        <div>{String(s)}</div>
-                      </li>
-                    ))
-                  ) : (
-                    <li className="py-1 text-gray-500">Flight details unavailable</li>
-                  )}
-                </ul>
-              </div>
+                  <div className="mt-3">
+                    <div className="text-sm font-medium mb-1">Segments</div>
+                    <ul className="text-sm list-inside list-decimal">
+                      {(it.flight?.segments && Array.isArray(it.flight.segments) && it.flight.segments.length > 0) ? (
+                        it.flight.segments.map((s: any, i: number) => (
+                          <li key={i} className="py-1">
+                            <div>{String(s)}</div>
+                          </li>
+                        ))
+                      ) : (
+                        <li className="py-1 text-gray-500">Flight details unavailable</li>
+                      )}
+                    </ul>
+                  </div>
+                </>
+              )}
             </div>
           )
         })}

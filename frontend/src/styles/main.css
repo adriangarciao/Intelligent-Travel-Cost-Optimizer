@@ -1,3 +1,6 @@
+/* Typography: Montserrat via Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -5,3 +8,135 @@
 html, body, #root {
   height: 100%;
 }
+
+:root {
+  --dry-sage: hsla(50, 37%, 69%, 1);
+  --soft-linen: hsla(47, 23%, 88%, 1);
+  --baby-blue-ice: hsla(219, 58%, 76%, 1);
+  --cornflower-blue: hsla(221, 71%, 65%, 1);
+  --dusk-blue: hsla(221, 48%, 36%, 1);
+
+  /* tokens */
+  --bg: var(--soft-linen);
+  --surface: #ffffff;
+  --text: var(--dusk-blue);
+  --muted: rgba(34,34,34,0.45);
+  --border: rgba(34,34,34,0.08);
+  --shadow: 0 6px 18px rgba(34,34,34,0.06);
+
+  --transition-fast: 200ms;
+}
+
+/* Global font */
+body {
+  font-family: 'Montserrat', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+  color: var(--text);
+  background: linear-gradient(180deg, var(--bg) 0%, #f8faf8 100%);
+}
+
+/* Card, buttons and common UI */
+.card {
+  background: var(--surface);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+  border: 1px solid var(--border);
+}
+
+.btn {
+  background: var(--cornflower-blue);
+  color: white;
+  padding: 0.5rem 0.9rem;
+  border-radius: 999px;
+  transition: transform var(--transition-fast) ease, filter var(--transition-fast) ease, box-shadow var(--transition-fast) ease;
+}
+.btn:hover { transform: translateY(-2px); filter: brightness(.95); }
+.btn:active { transform: translateY(0); }
+.btn:focus { outline: 3px solid rgba(34, 78, 160, 0.14); outline-offset: 2px; }
+
+.card-hoverable { transition: transform var(--transition-fast) ease, box-shadow var(--transition-fast) ease; }
+.card-hoverable:hover { transform: translateY(-2px); box-shadow: 0 10px 22px rgba(34,34,34,0.08); }
+
+/* Price rank badges */
+.price-badge { font-size: 0.75rem; padding: 0.25rem 0.5rem; border-radius: 8px; font-weight:600 }
+.price-high { background: rgba(220, 38, 38, 0.12); color: #b91c1c; border: 1px solid rgba(220,38,38,0.12); }
+.price-low { background: rgba(34,197,94,0.12); color: #059669; border: 1px solid rgba(34,197,94,0.12); }
+
+/* Left accent bar for cards */
+.card-accent { border-left: 6px solid transparent; }
+.card-accent.high { border-left-color: rgba(220,38,38,0.14); }
+.card-accent.low { border-left-color: rgba(34,197,94,0.14); }
+
+/* Skeleton / shimmer */
+.skeleton { background: linear-gradient(90deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.12) 50%, rgba(255,255,255,0.06) 100%); overflow: hidden; position: relative; }
+.skeleton::after { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, rgba(255,255,255,0.00) 0%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.00) 100%); transform: translateX(-100%); animation: shimmer 900ms linear infinite; }
+@keyframes shimmer { to { transform: translateX(100%); } }
+
+/* Utility for subtle muted text */
+.muted { color: rgba(34,34,34,0.55); }
+
+/* Inputs and form focus styles */
+input, textarea, select {
+  font-family: 'Montserrat', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+  border: 1px solid var(--border);
+  transition: box-shadow var(--transition-fast), border-color var(--transition-fast);
+  padding: 0.4rem 0.5rem;
+  border-radius: 8px;
+}
+input:focus, textarea:focus, select:focus {
+  outline: none;
+  border-color: var(--cornflower-blue);
+  box-shadow: 0 6px 18px rgba(34,34,34,0.06), 0 0 0 4px rgba(66, 139, 255, 0.08);
+}
+
+/* Hero full-bleed helper: makes a section span the full viewport width while inside a centered container */
+.hero-bleed {
+  position: relative;
+  margin-left: calc(50% - 50vw);
+  margin-right: calc(50% - 50vw);
+  width: 100vw;
+}
+
+.hero-overlay {
+  background: rgba(0,0,0,0.36);
+  position: absolute;
+  inset: 0;
+}
+
+.hero-content { position: relative; z-index: 2; }
+
+/* Subtle fade-in for sections */
+.fade-in { animation: fadeIn 260ms ease both; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(6px) } to { opacity: 1; transform: translateY(0) } }
+
+/* ===== How It Works Section ===== */
+.hiw-section {
+  background: linear-gradient(180deg, rgba(255,255,255,0.6) 0%, rgba(248,250,248,0.8) 100%);
+  border-top: 1px solid rgba(0,0,0,0.04);
+  border-bottom: 1px solid rgba(0,0,0,0.04);
+}
+
+.hiw-fade-in {
+  animation: hiwFadeIn 400ms ease-out both;
+}
+
+@keyframes hiwFadeIn {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.hiw-card {
+  animation: hiwFadeIn 400ms ease-out both;
+  transition: transform 200ms ease, box-shadow 200ms ease;
+}
+
+.hiw-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 28px rgba(34,34,34,0.1);
+}
+
+.hiw-icon {
+  background: linear-gradient(135deg, var(--baby-blue-ice) 0%, var(--cornflower-blue) 100%);
+  color: white;
+  box-shadow: 0 4px 12px rgba(66, 139, 255, 0.2);
+}
+

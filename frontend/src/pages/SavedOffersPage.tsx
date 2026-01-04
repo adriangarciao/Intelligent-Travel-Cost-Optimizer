@@ -161,11 +161,11 @@ export default function SavedOffersPage() {
     <div>
       <h2 className="text-xl font-semibold mb-4">Saved Offers</h2>
       <div className="mb-3">
-        <button className="px-3 py-1 border rounded mr-2" onClick={() => {
+        <button className="btn" style={{marginRight:12}} onClick={() => {
           const filename = `traveloptimizer-saved-${new Date().toISOString().replace(/[:.]/g,'-')}.json`
           downloadJson(filename, { offers, createdAt: new Date().toISOString() })
         }}>Export Saved JSON</button>
-        <button className="px-3 py-1 border rounded" onClick={() => {
+        <button className="btn" onClick={() => {
           const filename = `traveloptimizer-saved-${new Date().toISOString().replace(/[:.]/g,'-')}.csv`
           const rows = offers.map((o: any) => ({
             tripOptionId: o.tripOptionId || o.id,
@@ -218,7 +218,7 @@ export default function SavedOffersPage() {
                           Last seen: {watch.getWatchForOffer(o.id)?.lastSeenPrice ? `${option.currency} ${watch.getWatchForOffer(o.id)?.lastSeenPrice}` : 'n/a'}
                         </div>
                       </div>
-                      <button className="px-2 py-1 border rounded text-sm" onClick={() => handleRemove(o.id)}>Remove</button>
+                      <button className="btn" style={{padding:'0.25rem 0.5rem'}} onClick={() => handleRemove(o.id)}>Remove</button>
                     </div>
                 </div>
               </div>

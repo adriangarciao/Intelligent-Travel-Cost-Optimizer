@@ -5,6 +5,8 @@ import com.adriangarciao.traveloptimizer.dto.TripSearchRequestDTO;
 import com.adriangarciao.traveloptimizer.dto.TripSearchResponseDTO;
 import com.adriangarciao.traveloptimizer.service.TripSearchService;
 import jakarta.validation.Valid;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -27,6 +29,7 @@ public class TripSearchController {
     private final TripSearchService tripSearchService;
     private final com.adriangarciao.traveloptimizer.repository.TripSearchRepository
             tripSearchRepository;
+    private static final Logger log = LoggerFactory.getLogger(TripSearchController.class);
 
     public TripSearchController(
             TripSearchService tripSearchService,
@@ -87,28 +90,35 @@ public class TripSearchController {
     public ResponseEntity<java.util.List<java.util.Map<String, Object>>> recent(
             @RequestParam(value = "limit", defaultValue = "10") int limit) {
         int safeLimit = Math.max(1, Math.min(limit, 50));
-        var page =
-                tripSearchRepository.findAll(
-                        org.springframework.data.domain.PageRequest.of(
-                                0,
-                                safeLimit,
-                                org.springframework.data.domain.Sort.by(
-                                        org.springframework.data.domain.Sort.Direction.DESC,
-                                        "createdAt")));
-        var result =
-                page.getContent().stream()
-                        .map(
-                                ts -> {
-                                    java.util.Map<String, Object> m = new java.util.HashMap<>();
-                                    m.put("searchId", ts.getId());
-                                    m.put("origin", ts.getOrigin());
-                                    m.put("destination", ts.getDestination());
-                                    m.put("earliestDepartureDate", ts.getEarliestDepartureDate());
-                                    m.put("latestDepartureDate", ts.getLatestDepartureDate());
-                                    m.put("createdAt", ts.getCreatedAt());
-                                    return m;
-                                })
-                        .toList();
-        return ResponseEntity.ok(result);
+        try {
+            var page =
+                    tripSearchRepository.findAll(
+                            org.springframework.data.domain.PageRequest.of(
+                                    0,
+                                    safeLimit,
+                                    org.springframework.data.domain.Sort.by(
+                                            org.springframework.data.domain.Sort.Direction.DESC,
+                                            "createdAt")));
+            var result =
+                    page.getContent().stream()
+                            .map(
+                                    ts -> {
+                                        java.util.Map<String, Object> m = new java.util.HashMap<>();
+                                        m.put("searchId", ts.getId());
+                                        m.put("origin", ts.getOrigin());
+                                        m.put("destination", ts.getDestination());
+                                        m.put(
+                                                "earliestDepartureDate",
+                                                ts.getEarliestDepartureDate());
+                                        m.put("latestDepartureDate", ts.getLatestDepartureDate());
+                                        m.put("createdAt", ts.getCreatedAt());
+                                        return m;
+                                    })
+                            .toList();
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            log.error("Failed to load recent searches, returning empty list", e);
+            return ResponseEntity.ok(java.util.Collections.emptyList());
+        }
     }
 }

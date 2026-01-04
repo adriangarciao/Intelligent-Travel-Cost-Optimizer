@@ -116,6 +116,16 @@ export default function ResultsPage() {
   // Note: useMemo must be called unconditionally (before any early returns) per React hooks rules
   const scoreMap = useMemo(() => computeDealScores(options), [searchId, JSON.stringify(options.map(o => ({ id: o.id ?? o.tripOptionId, price: o.totalPrice })) )])
 
+  // Price ranking: determine top 2 most expensive and bottom 2 cheapest by current options
+  const priceRank = useMemo(() => {
+    const list = options.map((o: any, idx: number) => ({ idx, id: o.id ?? o.optionId ?? o.tripOptionId ?? String(idx), price: Number(o.totalPrice || 0) }))
+    // sort by price ascending
+    const sorted = [...list].sort((a, b) => a.price - b.price)
+    const low = new Set(sorted.slice(0, 2).map(s => s.id))
+    const high = new Set(sorted.slice(-2).map(s => s.id))
+    return { low, high }
+  }, [JSON.stringify(options.map(o => ({ id: o.id ?? o.optionId ?? o.tripOptionId, price: o.totalPrice })) )])
+
   // TEMP DEBUG: inspect the resolved data shape
   if (typeof window !== 'undefined') {
     // eslint-disable-next-line no-console
@@ -146,7 +156,18 @@ export default function ResultsPage() {
         </div>
       </div>
 
-          {isLoading && <div>Loading...</div>}
+          {isLoading && (
+            <div className="space-y-4">
+              {[1,2,3].map(i => (
+                <div key={i} className="p-4 card">
+                  <div className="skeleton h-6 w-40 mb-3 rounded"></div>
+                  <div className="skeleton h-4 w-28 mb-2 rounded"></div>
+                  <div className="skeleton h-3 w-full mb-1 rounded"></div>
+                  <div className="skeleton h-3 w-3/4 mt-2 rounded"></div>
+                </div>
+              ))}
+            </div>
+          )}
           {error && <div className="text-red-600">Error loading results: {(error as any)?.message ?? 'Unknown'}</div>}
 
           <div className="space-y-4">
@@ -158,6 +179,7 @@ export default function ResultsPage() {
             {options.map((opt: any) => {
               const key = opt.id ?? opt.optionId ?? opt.tripOptionId ?? JSON.stringify(opt)
               const info = scoreMap.get(opt.id ?? opt.tripOptionId ?? opt.optionId ?? key)
+              const priceTag = priceRank.low.has(opt.id ?? opt.optionId ?? opt.tripOptionId ?? key) ? 'low' : (priceRank.high.has(opt.id ?? opt.optionId ?? opt.tripOptionId ?? key) ? 'high' : undefined)
               return (
                 <TripCard
                   key={key}
@@ -167,6 +189,7 @@ export default function ResultsPage() {
                   dealScore={info?.score}
                   dealLabel={info?.label}
                   percentileText={info?.percentileText}
+                  priceTag={priceTag}
                   observability={observability}
                 />
               )
@@ -175,18 +198,20 @@ export default function ResultsPage() {
 
       <div className="flex items-center justify-between mt-6">
         <div>
-          <button 
-            className="px-3 py-1 border rounded mr-2 disabled:opacity-50" 
+          <button
+            className="btn"
             onClick={() => setPage((p) => Math.max(0, p - 1))}
             disabled={page === 0}
+            style={{opacity: page === 0 ? 0.5 : 1, marginRight: '0.5rem'}}
           >
             Prev
           </button>
-          <button 
-            className="px-3 py-1 border rounded disabled:opacity-50" 
+          <button
+            className="btn"
             onClick={() => setPage((p) => p + 1)}
             disabled={!hasMore && options.length < size}
             title={!hasMore && options.length < size ? 'No further options available' : ''}
+            style={{opacity: (!hasMore && options.length < size) ? 0.5 : 1}}
           >
             Next
           </button>

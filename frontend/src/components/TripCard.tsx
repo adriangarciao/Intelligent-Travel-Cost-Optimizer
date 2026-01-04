@@ -1,11 +1,37 @@
-import React, { useMemo, useState, useEffect } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import DealMeter from './DealMeter'
 import useCompare from '../hooks/useCompare'
 import { triggerToast } from './Toast'
 import ShareExportModal from './ShareExportModal'
 import { SavedItem } from '../hooks/useSavedItems'
-import type { TripOptionDTO, FlightSummary } from '../types/api'
+import type { TripOptionDTO, FlightSummary, TripFlagDTO, FlagSeverity } from '../types/api'
 import { saveOffer } from '../lib/api'
+
+/** Get styling classes for a flag based on severity */
+function getFlagStyles(severity: FlagSeverity): { bg: string; text: string; border: string } {
+  switch (severity) {
+    case 'BAD':
+      return { bg: 'bg-red-50', text: 'text-red-700', border: 'border-red-200' }
+    case 'WARN':
+      return { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200' }
+    case 'GOOD':
+      return { bg: 'bg-green-50', text: 'text-green-700', border: 'border-green-200' }
+    case 'INFO':
+    default:
+      return { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200' }
+  }
+}
+
+/** Get icon for flag severity */
+function getFlagIcon(severity: FlagSeverity): string {
+  switch (severity) {
+    case 'BAD': return '⚠'
+    case 'WARN': return '⚡'
+    case 'GOOD': return '✓'
+    case 'INFO':
+    default: return 'ℹ'
+  }
+}
 
 type Props = {
   searchId: string
@@ -16,7 +42,7 @@ type Props = {
 
 export type TripCardProps = Props
 
-export default function TripCard({ searchId, option, onSave, isSaved, expandedOverride, dealScore, dealLabel, percentileText, }: Props & { expandedOverride?: boolean, dealScore?: number, dealLabel?: string, percentileText?: string }) {
+export default function TripCard({ searchId, option, onSave, isSaved, expandedOverride, dealScore, dealLabel, percentileText, priceTag }: Props & { expandedOverride?: boolean, dealScore?: number, dealLabel?: string, percentileText?: string, priceTag?: 'low'|'high'|undefined }) {
   const optionId = option.id || JSON.stringify(option)
   const totalPrice = option.totalPrice ?? 0
   const currency = option.currency || 'USD'
@@ -64,7 +90,7 @@ export default function TripCard({ searchId, option, onSave, isSaved, expandedOv
   const [savedId, setSavedId] = useState<string | null>(null)
   const compare = useCompare()
   const compareId = `${searchId}:${optionId}`
-  const [showShare, setShowShare] = React.useState(false)
+  const [showShare, setShowShare] = useState(false)
 
   // support external control to force expansion (e.g. open from a notification)
   useEffect(() => {
@@ -106,13 +132,19 @@ export default function TripCard({ searchId, option, onSave, isSaved, expandedOv
   }
 
   return (
-    <div className="bg-white p-4 rounded shadow">
+    <div className={`p-4 rounded card card-hoverable card-accent ${priceTag === 'low' ? 'low' : priceTag === 'high' ? 'high' : ''}`}>
       {/* TEMP DEBUG: log exact option being rendered */}
       {typeof window !== 'undefined' && (console.log && console.log('TripCard render option=', option))}
       <div className="flex justify-between items-start">
         <div>
-          <div className="text-sm text-gray-500">Price</div>
-          <div className="text-lg font-semibold">{currency} {totalPrice}</div>
+          <div className="flex items-center gap-3">
+            <div>
+              <div className="text-sm muted">Price</div>
+              <div className="text-lg font-semibold">{currency} {totalPrice}</div>
+            </div>
+            {priceTag === 'low' && <div className="price-badge price-low">Best price</div>}
+            {priceTag === 'high' && <div className="price-badge price-high">High price</div>}
+          </div>
           <div className="mt-2 text-sm">Value score: {valueScore}</div>
           <div className="mt-2 text-sm text-gray-600 flex items-center gap-2">
             <span>{flight?.airlineName ?? flight?.airline ?? 'Flight'}</span>
@@ -121,7 +153,28 @@ export default function TripCard({ searchId, option, onSave, isSaved, expandedOv
               <span className="text-xs text-gray-400" title="Multiple flight numbers = connecting itinerary. Click details to see each leg.">i</span>
             )}
           </div>
-          {option && <div className="mt-2 text-xs italic text-gray-500">{option.mlNote}</div>}
+
+          {/* Explainability Flags */}
+          {option.flags && option.flags.length > 0 && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {option.flags.map((flag: TripFlagDTO, idx: number) => {
+                const styles = getFlagStyles(flag.severity)
+                const icon = getFlagIcon(flag.severity)
+                return (
+                  <div
+                    key={flag.code || idx}
+                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${styles.bg} ${styles.text} ${styles.border}`}
+                    title={flag.details || flag.title}
+                  >
+                    <span>{icon}</span>
+                    <span>{flag.title}</span>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
+          {option && option.mlNote && <div className="mt-2 text-xs italic text-gray-500">{option.mlNote}</div>}
         </div>
 
         <div className="flex flex-col items-end gap-2">
@@ -135,7 +188,8 @@ export default function TripCard({ searchId, option, onSave, isSaved, expandedOv
             </button>
             {!isSaved && (
               <button
-                className="bg-green-600 text-white px-3 py-1 rounded text-sm"
+                className="btn"
+                style={{backgroundColor: 'var(--dry-sage)', color: 'white'}}
                 onClick={async () => {
                   await handleSave()
                   if (onSave) {
@@ -156,7 +210,7 @@ export default function TripCard({ searchId, option, onSave, isSaved, expandedOv
               </button>
             )}
             <button
-              className={`px-3 py-1 rounded text-sm border ${compare.has(compareId) ? 'bg-blue-600 text-white' : 'bg-white text-gray-700'}` + (compare.ids.length >= 3 && !compare.has(compareId) ? ' opacity-60 cursor-not-allowed' : '')}
+              className={`px-3 py-1 rounded text-sm border ${compare.has(compareId) ? 'btn' : 'bg-white text-gray-700'}` + (compare.ids.length >= 3 && !compare.has(compareId) ? ' opacity-60 cursor-not-allowed' : '')}
               onClick={() => {
                 if (compare.ids.length >= 3 && !compare.has(compareId)) {
                   triggerToast('You can compare up to 3 flights')
@@ -177,7 +231,7 @@ export default function TripCard({ searchId, option, onSave, isSaved, expandedOv
             >
               {compare.has(compareId) ? 'Compare ✓' : 'Compare'}
             </button>
-            <button className="px-3 py-1 border rounded text-sm" onClick={() => setShowShare(true)}>Share</button>
+            <button className="btn" onClick={() => setShowShare(true)}>Share</button>
             {isSaved && (
               <div className="px-3 py-1 rounded text-sm text-gray-600">Saved</div>
             )}
@@ -186,10 +240,15 @@ export default function TripCard({ searchId, option, onSave, isSaved, expandedOv
         </div>
       </div>
 
-      <div className={`mt-3 overflow-hidden transition-all duration-200 ${expanded ? 'max-h-96' : 'max-h-0'}`}>
+      <div className={`mt-3 overflow-hidden transition-all duration-200 ${expanded ? 'max-h-[800px]' : 'max-h-0'}`}>
         <div className="p-3 border rounded bg-gray-50">
           {(!flight || (segments.length === 0 && parsedFlightNumbers.length === 0)) ? (
-            <div className="text-sm text-gray-500">Flight details unavailable.</div>
+            <div>
+              <div className="skeleton h-4 w-48 mb-2 rounded"></div>
+              <div className="skeleton h-3 w-36 mb-2 rounded"></div>
+              <div className="skeleton h-3 w-full mb-1 rounded"></div>
+              <div className="skeleton h-3 w-3/4 mt-2 rounded"></div>
+            </div>
           ) : (
             <div>
               <div className="text-sm text-gray-700">Duration: {flight?.durationText ?? '—'}</div>
@@ -220,6 +279,35 @@ export default function TripCard({ searchId, option, onSave, isSaved, expandedOv
                   <div className="mt-2 text-sm text-gray-600">Flight numbers: {parsedFlightNumbers.join(' / ')}</div>
                 )}
               </div>
+
+              {/* Detailed Flag Explanations */}
+              {option.flags && option.flags.length > 0 && (
+                <div className="mt-3 border-t pt-3">
+                  <div className="text-sm font-medium text-gray-800 mb-2">Flight Insights</div>
+                  <div className="space-y-2">
+                    {option.flags.map((flag: TripFlagDTO, idx: number) => {
+                      const styles = getFlagStyles(flag.severity)
+                      const icon = getFlagIcon(flag.severity)
+                      return (
+                        <div
+                          key={flag.code || idx}
+                          className={`p-2 rounded-lg border ${styles.bg} ${styles.border}`}
+                        >
+                          <div className={`flex items-center gap-2 font-medium ${styles.text}`}>
+                            <span>{icon}</span>
+                            <span>{flag.title}</span>
+                          </div>
+                          {flag.details && (
+                            <div className="mt-1 text-xs text-gray-600 pl-5">
+                              {flag.details}
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
 
               {option.valueScoreBreakdown && (
                 <div className="mt-3">
