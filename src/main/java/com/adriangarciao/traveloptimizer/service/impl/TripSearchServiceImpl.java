@@ -12,6 +12,7 @@ import com.adriangarciao.traveloptimizer.service.PriceHistoryService;
 import com.adriangarciao.traveloptimizer.service.SearchContext;
 import com.adriangarciao.traveloptimizer.service.TripSearchService;
 import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.DistributionSummary;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import java.math.BigDecimal;
@@ -59,6 +60,8 @@ public class TripSearchServiceImpl implements TripSearchService {
     // Micrometer metrics
     private final MeterRegistry meterRegistry;
     private final Counter searchRequestsCounter;
+    private final Counter searchFailuresCounter;
+    private final DistributionSummary offersReturnedSummary;
     private final Timer searchLatencyTimer;
 
     @org.springframework.beans.factory.annotation.Value("${ml.enabled:true}")
@@ -90,6 +93,8 @@ public class TripSearchServiceImpl implements TripSearchService {
         // No metrics in test constructor
         this.meterRegistry = null;
         this.searchRequestsCounter = null;
+        this.searchFailuresCounter = null;
+        this.offersReturnedSummary = null;
         this.searchLatencyTimer = null;
     }
 
@@ -111,6 +116,7 @@ public class TripSearchServiceImpl implements TripSearchService {
         this.priceHistoryService = null;
         this.tripFlagService = null;
         // No metrics in test constructor
+        this.meterRegistry = null;
         this.searchRequestsCounter = null;
         this.searchFailuresCounter = null;
         this.offersReturnedSummary = null;
@@ -152,6 +158,14 @@ public class TripSearchServiceImpl implements TripSearchService {
         this.searchRequestsCounter =
                 Counter.builder("traveloptimizer.trip_search.requests")
                         .description("Total trip search requests")
+                        .register(meterRegistry);
+        this.searchFailuresCounter =
+                Counter.builder("traveloptimizer.trip_search.failures")
+                        .description("Total trip search failures")
+                        .register(meterRegistry);
+        this.offersReturnedSummary =
+                DistributionSummary.builder("traveloptimizer.trip_search.offers_returned")
+                        .description("Number of offers returned per search")
                         .register(meterRegistry);
         this.searchLatencyTimer =
                 Timer.builder("traveloptimizer.trip_search.latency")
