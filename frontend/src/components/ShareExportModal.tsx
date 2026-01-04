@@ -9,7 +9,7 @@ export default function ShareExportModal({ items, onClose }: { items: OfferSnaps
         <h3 className="text-lg font-semibold mb-3">Share / Export</h3>
         <div className="text-sm text-gray-600 mb-3">Share link contains only the selected offer details (no personal data).</div>
         <div className="flex flex-col gap-2">
-          <button className="px-3 py-2 border rounded text-left" onClick={async () => {
+          <button className="btn" style={{textAlign:'left'}} onClick={async () => {
             try {
               const payload = encodeSharePayload(items)
               const url = window.location.origin + window.location.pathname + '?share=' + payload
@@ -18,12 +18,12 @@ export default function ShareExportModal({ items, onClose }: { items: OfferSnaps
             } catch (e) { triggerToast('Copy failed') }
           }}>Copy share link</button>
 
-          <button className="px-3 py-2 border rounded text-left" onClick={() => {
+          <button className="btn" style={{textAlign:'left'}} onClick={() => {
             const filename = `traveloptimizer-compare-${new Date().toISOString().replace(/[:.]/g,'-')}.json`
             downloadJson(filename, { offers: items, createdAt: new Date().toISOString() })
           }}>Download JSON</button>
 
-          <button className="px-3 py-2 border rounded text-left" onClick={() => {
+          <button className="btn" style={{textAlign:'left'}} onClick={() => {
             const filename = `traveloptimizer-compare-${new Date().toISOString().replace(/[:.]/g,'-')}.csv`
             const rows = items.map((it: any) => ({
               tripOptionId: it.tripOptionId || it.id,
@@ -40,7 +40,7 @@ export default function ShareExportModal({ items, onClose }: { items: OfferSnaps
             downloadCsv(filename, rows, ['tripOptionId','totalPrice','currency','valueScore','airlineName','airlineCode','flightNumber','stops','durationText','segments'])
           }}>Download CSV</button>
 
-          <button className="px-3 py-2 border rounded text-left" onClick={async () => {
+          <button className="btn" style={{textAlign:'left'}} onClick={async () => {
             try {
               const txt = buildOfferSummaryText(items)
               await navigator.clipboard.writeText(txt)
@@ -49,7 +49,7 @@ export default function ShareExportModal({ items, onClose }: { items: OfferSnaps
           }}>Copy Summary</button>
 
           {navigator.share && (
-            <button className="px-3 py-2 border rounded text-left" onClick={() => {
+            <button className="btn" style={{textAlign:'left'}} onClick={() => {
               try {
                 const payload = encodeSharePayload(items)
                 const url = window.location.origin + window.location.pathname + '?share=' + payload
@@ -60,7 +60,7 @@ export default function ShareExportModal({ items, onClose }: { items: OfferSnaps
           )}
 
           <div className="mt-3 flex justify-end gap-2">
-            <button className="px-3 py-1 border rounded" onClick={onClose}>Close</button>
+            <button className="btn" onClick={onClose}>Close</button>
           </div>
         </div>
       </div>

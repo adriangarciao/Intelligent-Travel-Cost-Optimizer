@@ -11,15 +11,15 @@ import Toast from './components/Toast'
 export default function App() {
   return (
     <div className="min-h-screen bg-gray-50">
-      <div style={{background:'#fde68a',padding:'6px',textAlign:'center',fontWeight:600}}>UI mounted OK — Travel Optimizer (debug banner)</div>
-      <header className="bg-white border-b">
+      <header className="bg-white border-b sticky top-0 z-40">
         <div className="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
-          <Link to="/" className="text-2xl font-semibold">
-            Travel Optimizer
+          <Link to="/" className="text-2xl font-normal" style={{color:'var(--dusk-blue)'}}>
+            TravelOptimizer
           </Link>
-          <nav className="flex gap-3">
-            <Link to="/saved/offers" className="text-sm text-gray-600">Saved Offers</Link>
-            <Link to="/saved" className="text-sm text-gray-600">Saved Searches</Link>
+          <nav className="flex gap-4 items-center">
+            <Link to="/saved/offers" className="text-sm text-gray-600 hover:underline">Saved Offers</Link>
+            <Link to="/saved" className="text-sm text-gray-600 hover:underline">Saved Searches</Link>
+            <Link to="/compare" className="text-sm text-gray-600 hover:underline">Compare</Link>
           </nav>
         </div>
       </header>
