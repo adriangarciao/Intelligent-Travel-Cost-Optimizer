@@ -123,6 +123,12 @@ export default function SavedOffersPage() {
       } catch (e) {
         opt.mlRecommendation = undefined
       }
+      // preserve flags if present
+      try {
+        opt.flags = opt.flags || (originalOption && (originalOption as any).flags) || (o && (o as any).flags) || undefined
+      } catch (e) {
+        opt.flags = undefined
+      }
       opt.__raw = opt
       return { option: opt as TripOptionDTO, legacy: false }
     }

@@ -76,6 +76,7 @@ export async function getTripOptions(
       price: o.totalPrice,
       currency: o.currency || 'USD',
       valueScore: o.valueScore,
+      tripType: o.tripType,
       // flatten ML note and top-level ML fields so components can read them directly
       mlRecommendation: o.mlRecommendation,
       buyWait: o.buyWait,
@@ -85,11 +86,17 @@ export async function getTripOptions(
       lodgingName: o.lodging?.hotelName,
       // keep original nested objects for detail views
       flight: o.flight,
+      flights: o.flights, // NEW: structured outbound/inbound for round-trip
       lodging: o.lodging,
+      // explainability flags
+      flags: o.flags,
+      valueScoreBreakdown: o.valueScoreBreakdown,
       // include original object
       __raw: o
     })),
-    totalElements: body.totalOptions ?? body.totalElements ?? 0
+    totalElements: body.totalOptions ?? body.totalElements ?? 0,
+    // Pass through criteria for SearchCriteriaSummary component
+    criteria: (body as any).criteria
   }
   return transformed as any
 }
@@ -163,4 +170,82 @@ export async function listRecentSearches(limit = 10) {
   const res = await fetch(`${BASE}/api/trips/recent?limit=${limit}`)
   if (!res.ok) throw new Error(await res.text())
   return (await res.json()) as any[]
+}
+
+// ==================== Smart Filters / Feedback API ====================
+
+export type FeedbackEventType = 
+  | 'SAVE' 
+  | 'UNSAVE' 
+  | 'DISMISS' 
+  | 'COMPARE_ADD' 
+  | 'DETAILS_VIEW'
+  | 'APPLY_FILTER'
+  | 'DISMISS_FILTER'
+
+export interface FeedbackEventPayload {
+  eventType: FeedbackEventType
+  tripOptionId?: string
+  searchId?: string
+  airlineCode?: string
+  stops?: number
+  durationMinutes?: number
+  price?: number
+  filterKey?: string
+  filterValue?: string
+}
+
+export interface FilterSuggestion {
+  key: string
+  value: any
+  confidence: number
+  why: string
+}
+
+export interface SmartFiltersResponse {
+  userId: string
+  suggestions: FilterSuggestion[]
+  totalEventsAnalyzed: number
+}
+
+/**
+ * Send a feedback event to the server (fire-and-forget style).
+ * This helps build the smart filter suggestions.
+ */
+export async function sendFeedback(payload: FeedbackEventPayload): Promise<void> {
+  const clientId = getClientId()
+  try {
+    await fetch(`${BASE}/api/feedback`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Client-Id': clientId
+      },
+      body: JSON.stringify(payload)
+    })
+    // Fire-and-forget: don't block on response or throw on error
+  } catch (e) {
+    console.warn('Feedback send failed (non-critical):', e)
+  }
+}
+
+/**
+ * Fetch smart filter suggestions for the current user based on their
+ * interaction history (saves, dismisses, etc.)
+ */
+export async function getSmartFilters(): Promise<SmartFiltersResponse | null> {
+  const clientId = getClientId()
+  try {
+    const res = await fetch(`${BASE}/api/users/${encodeURIComponent(clientId)}/smart-filters`, {
+      headers: { 'X-Client-Id': clientId }
+    })
+    if (!res.ok) {
+      if (res.status === 404) return null // No suggestions yet
+      throw new Error(await res.text())
+    }
+    return (await res.json()) as SmartFiltersResponse
+  } catch (e) {
+    console.warn('Failed to fetch smart filters:', e)
+    return null
+  }
 }
