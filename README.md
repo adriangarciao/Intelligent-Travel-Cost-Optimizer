@@ -4,7 +4,31 @@ TravelOptimizer is a developer-focused prototype for smarter flight decisions. I
 
 Demo
 
-- Screenshot: a representative screenshot is expected in `/images/image1.jpg`. To embed screenshots, place images in `/images` and update this file with relative paths.
+The following screenshots walk through the main flows from left to right:
+
+- Hero page: frontend/public/images/heropage.png
+
+  ![Hero page](frontend/public/images/heropage.png)
+
+  Caption: Landing view with branding and the primary search form. The hero highlights the app value and contains the centered search card used to start searches.
+
+- Search form: frontend/public/images/searchform.png
+
+  ![Search form](frontend/public/images/searchform.png)
+
+  Caption: Focused view of the search form showing origin, destination, date window, and trip type toggles. Submitting this form posts to `/api/trips/search` and navigates to results.
+
+- Results page: frontend/public/images/resultspage.png
+
+  ![Results page](frontend/public/images/resultspage.png)
+
+  Caption: Paginated search results with price, Value Score, Deal Meter, and quick actions. Click "View Details" for the score breakdown and Buy/Wait recommendation.
+
+- Compare page: frontend/public/images/comparePage.png
+
+  ![Compare page](frontend/public/images/comparePage.png)
+
+  Caption: Side-by-side comparison of saved offers. Useful fields are price, duration, stops, and the Value Score to help decide between options.
 
 Key features
 
