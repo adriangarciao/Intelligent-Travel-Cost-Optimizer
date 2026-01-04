@@ -171,7 +171,6 @@ Roadmap (suggested, short)
 
 License
 
-No license file detected. Marked as: TBD.
 Traveloptimizer — Local Development
 
 ## Local Dev
