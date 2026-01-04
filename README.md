@@ -4,7 +4,7 @@ TravelOptimizer is a developer-focused prototype for smarter flight decisions. I
 
 Demo
 
-The following screenshots walk through the main flows from left to right:
+The following screenshots walk through the main flows:
 
 - Hero page: frontend/public/images/heropage.png
 
