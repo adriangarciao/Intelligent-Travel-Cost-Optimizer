@@ -1,18 +1,17 @@
 package com.adriangarciao.traveloptimizer.health;
 
+import java.sql.Connection;
+import java.time.Duration;
+import javax.sql.DataSource;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.health.contributor.Health;
 import org.springframework.boot.health.contributor.HealthIndicator;
 import org.springframework.core.env.Environment;
-import org.springframework.stereotype.Component;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.connection.RedisConnection;
+import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
-
-import javax.sql.DataSource;
-import java.sql.Connection;
-import java.time.Duration;
 
 @Component
 public class ApplicationHealthIndicator implements HealthIndicator {
@@ -26,8 +25,7 @@ public class ApplicationHealthIndicator implements HealthIndicator {
     @Autowired(required = false)
     private StringRedisTemplate stringRedisTemplate;
 
-    @Autowired
-    private Environment env;
+    @Autowired private Environment env;
 
     @Autowired(required = false)
     private WebClient.Builder webClientBuilder;
@@ -78,16 +76,18 @@ public class ApplicationHealthIndicator implements HealthIndicator {
             } else {
                 try {
                     WebClient client = webClientBuilder.baseUrl(mlBase).build();
-                    String[] paths = new String[]{"/actuator/health", "/health", "/"};
+                    String[] paths = new String[] {"/actuator/health", "/health", "/"};
                     boolean ok = false;
                     String lastMsg = null;
                     for (String p : paths) {
                         try {
-                            var resp = client.get().uri(p)
-                                    .retrieve()
-                                    .toBodilessEntity()
-                                    .timeout(Duration.ofSeconds(2))
-                                    .block();
+                            var resp =
+                                    client.get()
+                                            .uri(p)
+                                            .retrieve()
+                                            .toBodilessEntity()
+                                            .timeout(Duration.ofSeconds(2))
+                                            .block();
                             if (resp != null && resp.getStatusCode().is2xxSuccessful()) {
                                 ok = true;
                                 break;

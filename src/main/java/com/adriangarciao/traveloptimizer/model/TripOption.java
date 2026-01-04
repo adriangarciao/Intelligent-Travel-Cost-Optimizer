@@ -1,17 +1,14 @@
 package com.adriangarciao.traveloptimizer.model;
 
 import jakarta.persistence.*;
+import java.math.BigDecimal;
+import java.util.UUID;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.math.BigDecimal;
-import java.util.UUID;
-
-/**
- * JPA entity representing a computed trip option for a given search.
- */
+/** JPA entity representing a computed trip option for a given search. */
 @Entity
 @Table(name = "trip_option")
 @Data
@@ -21,9 +18,12 @@ import java.util.UUID;
 public class TripOption {
     @Id
     @GeneratedValue(generator = "UUID")
-    @org.hibernate.annotations.GenericGenerator(name = "UUID", strategy = "org.hibernate.id.UUIDGenerator")
+    @org.hibernate.annotations.GenericGenerator(
+            name = "UUID",
+            strategy = "org.hibernate.id.UUIDGenerator")
     @Column(name = "id", updatable = false, nullable = false)
     private UUID id;
+
     @Column(name = "total_price", precision = 19, scale = 2)
     private BigDecimal totalPrice;
 
@@ -33,8 +33,7 @@ public class TripOption {
     @Column(name = "value_score")
     private double valueScore;
 
-    @Transient
-    private java.util.Map<String, Double> valueScoreBreakdown;
+    @Transient private java.util.Map<String, Double> valueScoreBreakdown;
 
     @Column(name = "ml_recommendation", columnDefinition = "text")
     private String mlRecommendationJson;

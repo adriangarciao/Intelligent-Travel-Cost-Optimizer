@@ -1,16 +1,15 @@
 package com.adriangarciao.traveloptimizer.client;
 
+import java.time.Duration;
+import java.time.Instant;
+import java.util.Map;
 import org.springframework.http.MediaType;
 import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.client.WebClient;
 
-import java.time.Instant;
-import java.time.Duration;
-import java.util.Map;
-
 /**
- * Lightweight Amadeus token client with an in-memory cached access token.
- * Supports both manual construction (used in unit tests) and Spring wiring.
+ * Lightweight Amadeus token client with an in-memory cached access token. Supports both manual
+ * construction (used in unit tests) and Spring wiring.
  */
 public class AmadeusAuthClient {
 
@@ -24,31 +23,34 @@ public class AmadeusAuthClient {
     private volatile String accessToken;
     private volatile Instant expiresAt = Instant.EPOCH;
 
-    /**
-     * Manual constructor used by unit tests.
-     */
+    /** Manual constructor used by unit tests. */
     public AmadeusAuthClient(String baseUrl, String clientId, String clientSecret, long timeoutMs) {
-        this.baseUrl = baseUrl != null && baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length()-1) : baseUrl;
+        this.baseUrl =
+                baseUrl != null && baseUrl.endsWith("/")
+                        ? baseUrl.substring(0, baseUrl.length() - 1)
+                        : baseUrl;
         this.clientId = clientId;
         this.clientSecret = clientSecret;
         this.timeoutMs = timeoutMs;
         this.webClient = WebClient.builder().baseUrl(this.baseUrl).build();
     }
 
-    /**
-     * General constructor for DI usage.
-     */
-    public AmadeusAuthClient(WebClient webClient, String baseUrl, String clientId, String clientSecret, long timeoutMs) {
-        this.webClient = webClient != null ? webClient : WebClient.builder().baseUrl(baseUrl).build();
+    /** General constructor for DI usage. */
+    public AmadeusAuthClient(
+            WebClient webClient,
+            String baseUrl,
+            String clientId,
+            String clientSecret,
+            long timeoutMs) {
+        this.webClient =
+                webClient != null ? webClient : WebClient.builder().baseUrl(baseUrl).build();
         this.baseUrl = baseUrl;
         this.clientId = clientId;
         this.clientSecret = clientSecret;
         this.timeoutMs = timeoutMs;
     }
 
-    /**
-     * Obtain a valid access token, refreshing if expired or near expiry.
-     */
+    /** Obtain a valid access token, refreshing if expired or near expiry. */
     public synchronized String getAccessToken() {
         Instant now = Instant.now();
         if (accessToken != null && expiresAt.isAfter(now.plusSeconds(30))) {
@@ -57,15 +59,18 @@ public class AmadeusAuthClient {
 
         // perform token request
         try {
-            Map resp = webClient.post()
-                    .uri("/v1/security/oauth2/token")
-                    .contentType(MediaType.APPLICATION_FORM_URLENCODED)
-                    .body(BodyInserters.fromFormData("grant_type", "client_credentials")
-                            .with("client_id", clientId)
-                            .with("client_secret", clientSecret))
-                    .retrieve()
-                    .bodyToMono(Map.class)
-                    .block(Duration.ofMillis(timeoutMs));
+            Map resp =
+                    webClient
+                            .post()
+                            .uri("/v1/security/oauth2/token")
+                            .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                            .body(
+                                    BodyInserters.fromFormData("grant_type", "client_credentials")
+                                            .with("client_id", clientId)
+                                            .with("client_secret", clientSecret))
+                            .retrieve()
+                            .bodyToMono(Map.class)
+                            .block(Duration.ofMillis(timeoutMs));
 
             if (resp == null) throw new IllegalStateException("Empty token response");
 

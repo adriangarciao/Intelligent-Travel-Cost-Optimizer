@@ -1,95 +1,135 @@
 package com.adriangarciao.traveloptimizer.service.impl;
 
 import com.adriangarciao.traveloptimizer.dto.BuyWaitDTO;
+import com.adriangarciao.traveloptimizer.dto.MlRecommendationDTO;
 import com.adriangarciao.traveloptimizer.dto.TripOptionSummaryDTO;
 import com.adriangarciao.traveloptimizer.dto.TripSearchRequestDTO;
 import com.adriangarciao.traveloptimizer.service.BuyWaitService;
 import com.adriangarciao.traveloptimizer.service.PriceHistoryService;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
-import lombok.extern.slf4j.Slf4j;
-
 import java.time.Duration;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
-import com.adriangarciao.traveloptimizer.dto.MlRecommendationDTO;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
 
+/**
+ * Service for computing Buy/Wait recommendations with guardrails to prevent contradictory
+ * recommendations (e.g., BUY on a POOR deal).
+ *
+ * <p>Key principles: 1. POOR deals (percentile >= 0.75) should NOT get BUY unless a strong override
+ * applies 2. Overrides require: (a) very urgent (≤7 days) AND (b) confirmed RISING trend 3. When
+ * override applies, explanation MUST explicitly justify the contradictory recommendation
+ */
 @Service
 @Slf4j
 public class BuyWaitServiceImpl implements BuyWaitService {
 
+    // === Configuration thresholds ===
+    /** Percentile threshold for "POOR" deal (worst 25%) */
+    private static final double POOR_DEAL_PERCENTILE = 0.75;
+
+    /** Percentile threshold for "GOOD" deal (best 40%) */
+    private static final double GOOD_DEAL_PERCENTILE = 0.40;
+
+    /** Days threshold for "urgent" time pressure */
+    private static final int URGENT_DAYS_THRESHOLD = 7;
+
+    /** Days threshold for moderate time pressure */
+    private static final int TIME_PRESSURE_DAYS = 14;
+
+    /** Confidence threshold for strong rising trend to justify override */
+    private static final double STRONG_TREND_CONFIDENCE = 0.70;
+
     private final PriceHistoryService priceHistoryService;
-    
-    /**
-     * No-arg constructor for unit tests that don't need price history.
-     */
+
+    /** No-arg constructor for unit tests that don't need price history. */
     public BuyWaitServiceImpl() {
         this.priceHistoryService = null;
     }
-    
+
     @Autowired
-    public BuyWaitServiceImpl(@Autowired(required = false) PriceHistoryService priceHistoryService) {
+    public BuyWaitServiceImpl(
+            @Autowired(required = false) PriceHistoryService priceHistoryService) {
         this.priceHistoryService = priceHistoryService;
     }
 
     @Override
-    public BuyWaitDTO computeBaseline(TripOptionSummaryDTO option, List<TripOptionSummaryDTO> allOptions, TripSearchRequestDTO request) {
+    public BuyWaitDTO computeBaseline(
+            TripOptionSummaryDTO option,
+            List<TripOptionSummaryDTO> allOptions,
+            TripSearchRequestDTO request) {
         if (option == null || allOptions == null || allOptions.isEmpty()) {
-            return BuyWaitDTO.builder().decision("HOLD").confidence(0.0).reasons(java.util.List.of("Insufficient data")).trend("UNKNOWN").build();
+            return BuyWaitDTO.builder()
+                    .decision("HOLD")
+                    .confidence(0.0)
+                    .reasons(List.of("Insufficient data"))
+                    .trend("UNKNOWN")
+                    .dealRating("UNKNOWN")
+                    .build();
         }
 
-        // compute price percentile among allOptions (0 = cheapest, 1 = most expensive)
+        // === Step 1: Compute price percentile (0 = cheapest, 1 = most expensive) ===
         List<Double> prices = new ArrayList<>();
-        for (TripOptionSummaryDTO o : allOptions) prices.add(o.getTotalPrice().doubleValue());
+        for (TripOptionSummaryDTO o : allOptions) {
+            prices.add(o.getTotalPrice().doubleValue());
+        }
         prices.sort(Comparator.naturalOrder());
         double price = option.getTotalPrice().doubleValue();
         int index = 0;
         for (int i = 0; i < prices.size(); i++) {
-            if (prices.get(i) == price) { index = i; break; }
+            if (prices.get(i) == price) {
+                index = i;
+                break;
+            }
         }
-        double percentile;
-        if (prices.size() <= 1) percentile = 0.5;
-        else percentile = (double) index / (double) (prices.size() - 1);
+        double percentile =
+                (prices.size() <= 1) ? 0.5 : (double) index / (double) (prices.size() - 1);
 
-        // days to departure (use earliestDepartureDate if available)
+        // === Step 2: Compute days to departure ===
         int daysToDeparture = -1;
         LocalDate departureDate = null;
         try {
             if (request != null && request.getEarliestDepartureDate() != null) {
                 LocalDate now = LocalDate.now();
                 departureDate = request.getEarliestDepartureDate();
-                daysToDeparture = (int) Duration.between(now.atStartOfDay(), departureDate.atStartOfDay()).toDays();
+                daysToDeparture =
+                        (int)
+                                Duration.between(now.atStartOfDay(), departureDate.atStartOfDay())
+                                        .toDays();
             }
         } catch (Exception e) {
             daysToDeparture = -1;
         }
 
-        List<String> reasons = new ArrayList<>();
-
-        // Compute trend from price history service (real data) OR fall back to ML recommendation
+        // === Step 3: Compute trend from price history or ML ===
         String trendStr = "UNKNOWN";
         String trendReason = null;
-        
-        // Try to get trend from price history first
+        double trendConfidence = 0.0;
+
         if (priceHistoryService != null && request != null && departureDate != null) {
             try {
-                PriceHistoryService.TrendResult trendResult = priceHistoryService.computeTrend(
-                    request.getOrigin(), 
-                    request.getDestination(), 
-                    departureDate
-                );
+                PriceHistoryService.TrendResult trendResult =
+                        priceHistoryService.computeTrend(
+                                request.getOrigin(), request.getDestination(), departureDate);
                 trendStr = trendResult.trend();
                 trendReason = trendResult.reason();
-                log.debug("Price history trend for {}->{}: {} ({})", 
-                    request.getOrigin(), request.getDestination(), trendStr, trendReason);
+                // Confidence based on observation count
+                trendConfidence = Math.min(1.0, trendResult.observationCount() / 10.0);
+                log.debug(
+                        "Price history trend for {}->{}: {} (confidence: {})",
+                        request.getOrigin(),
+                        request.getDestination(),
+                        trendStr,
+                        trendConfidence);
             } catch (Exception e) {
                 log.debug("Failed to compute trend from price history: {}", e.getMessage());
             }
         }
-        
-        // If price history didn't give us a non-UNKNOWN trend, try ML recommendation
+
+        // Fall back to ML recommendation if price history didn't help
         if ("UNKNOWN".equals(trendStr)) {
             try {
                 MlRecommendationDTO mr = option.getMlRecommendation();
@@ -97,221 +137,369 @@ public class BuyWaitServiceImpl implements BuyWaitService {
                     String t = mr.getPriceTrend();
                     if (t == null) t = mr.getTrend();
                     if (t != null) {
-                        t = t.toLowerCase();
-                        if (t.contains("down") || t.contains("fall")) {
+                        t = t.toLowerCase().trim();
+
+                        // Use multiple detection strategies due to JVM String.contains quirks
+                        boolean hasRise =
+                                t.startsWith("ris") || "rising".equals(t) || t.matches(".*ris.*");
+                        boolean hasUp = t.contains("up") || t.matches(".*up.*");
+                        boolean hasDown =
+                                t.contains("down")
+                                        || t.contains("fall")
+                                        || t.matches(".*down.*|.*fall.*");
+                        boolean hasStable = t.contains("stable") || t.matches(".*stable.*");
+
+                        if (hasDown) {
                             trendStr = "FALLING";
                             trendReason = "ML model predicts prices may decrease.";
-                        } else if (t.contains("up") || t.contains("rise")) {
+                            trendConfidence = mr.getConfidence() != null ? mr.getConfidence() : 0.5;
+                        } else if (hasUp || hasRise) {
                             trendStr = "RISING";
                             trendReason = "ML model predicts prices may increase.";
-                        } else if (t.contains("stable")) {
+                            trendConfidence = mr.getConfidence() != null ? mr.getConfidence() : 0.5;
+                        } else if (hasStable) {
                             trendStr = "STABLE";
                             trendReason = "ML model predicts prices will remain stable.";
+                            trendConfidence = mr.getConfidence() != null ? mr.getConfidence() : 0.5;
                         }
                     }
                 }
-            } catch (Exception ignored) {}
+            } catch (Exception e) {
+                log.warn("Failed to parse ML recommendation: {}", e.getMessage());
+            }
         }
-        
-        // Normalize for comparison (lowercase)
+
         String trendLower = trendStr.toLowerCase();
 
-        // Decision policy
+        // === Step 4: Compute deal rating ===
+        String dealRating = computeDealRating(percentile);
+        boolean isPoorDeal = "POOR".equals(dealRating);
+
+        // === Step 5: Compute time pressure flags ===
+        boolean isUrgent = (daysToDeparture >= 0 && daysToDeparture <= URGENT_DAYS_THRESHOLD);
+        boolean hasTimePressure = (daysToDeparture >= 0 && daysToDeparture <= TIME_PRESSURE_DAYS);
+        boolean isRisingTrend = "rising".equals(trendLower);
+        boolean isFallingTrend = "falling".equals(trendLower);
+        boolean hasStrongRisingTrend = isRisingTrend && trendConfidence >= STRONG_TREND_CONFIDENCE;
+
+        // === Step 6: Decision logic with POOR deal guardrail ===
         String decision;
-        boolean timePressure = (daysToDeparture >= 0 && daysToDeparture <= 14);
-        if (daysToDeparture >= 0 && daysToDeparture <= 14) {
-            if ("falling".equals(trendLower) && percentile >= 0.80) {
+        String decisionRule;
+        boolean overrideApplied = false;
+
+        if (isPoorDeal) {
+            // GUARDRAIL: Poor deals default to WAIT unless strong override
+            if (isUrgent && hasStrongRisingTrend) {
+                // Override: Very urgent + confirmed rising trend
+                decision = "BUY";
+                decisionRule = "OVERRIDE_URGENT_RISING";
+                overrideApplied = true;
+            } else if (isUrgent && daysToDeparture <= 3) {
+                // Override: Extremely urgent (3 days or less) regardless of trend
+                decision = "BUY";
+                decisionRule = "OVERRIDE_EXTREMELY_URGENT";
+                overrideApplied = true;
+            } else {
+                // Default for poor deals: WAIT
                 decision = "WAIT";
+                decisionRule = "POOR_DEAL_DEFAULT_WAIT";
+            }
+        } else if (hasTimePressure) {
+            // Time pressure (≤14 days) for non-poor deals
+            if (isFallingTrend && percentile >= 0.60) {
+                decision = "WAIT";
+                decisionRule = "TIME_PRESSURE_FALLING_EXPENSIVE";
+            } else if (isFallingTrend && trendConfidence >= STRONG_TREND_CONFIDENCE) {
+                // Strong falling trend can override time pressure for fair deals
+                decision = "WAIT";
+                decisionRule = "TIME_PRESSURE_STRONG_FALLING";
             } else {
                 decision = "BUY";
+                decisionRule = "TIME_PRESSURE_DEFAULT_BUY";
             }
         } else {
-            if ("falling".equals(trendLower)) {
+            // No time pressure: standard logic
+            if (isFallingTrend) {
                 decision = "WAIT";
-            } else if ("rising".equals(trendLower)) {
+                decisionRule = "NO_URGENCY_FALLING";
+            } else if (isRisingTrend) {
                 decision = "BUY";
+                decisionRule = "NO_URGENCY_RISING";
             } else if ("stable".equals(trendLower)) {
-                if (percentile <= 0.60) decision = "BUY"; else decision = "WAIT";
-            } else { // unknown
-                if (percentile <= 0.50) decision = "BUY"; else decision = "WAIT";
+                decision = (percentile <= 0.60) ? "BUY" : "WAIT";
+                decisionRule = (percentile <= 0.60) ? "STABLE_GOOD_PRICE" : "STABLE_HIGH_PRICE";
+            } else {
+                // Unknown trend
+                decision = (percentile <= 0.50) ? "BUY" : "WAIT";
+                decisionRule = (percentile <= 0.50) ? "UNKNOWN_GOOD_PRICE" : "UNKNOWN_HIGH_PRICE";
             }
         }
 
-        // Base confidence from price percentile distance from 0.5
-        double base = 0.5 + Math.abs(percentile - 0.5) * 0.5; // range 0.5..1.0
+        // === Step 7: Compute confidence ===
+        double confidence =
+                computeConfidence(
+                        percentile,
+                        trendLower,
+                        trendConfidence,
+                        hasTimePressure,
+                        isPoorDeal,
+                        overrideApplied);
 
-        // cap by trend
-        double cap = 0.90;
-        if ("unknown".equals(trendLower)) cap = 0.60;
-        else if ("stable".equals(trendLower)) cap = 0.75;
-        else cap = 0.90; // rising/falling
-
-        double confidence = Math.min(base, cap);
-
-        // Build signal suggestions to detect conflicts
-        boolean priceSuggestBuy = percentile <= 0.60;
-        boolean priceSuggestWait = !priceSuggestBuy;
-        boolean trendSuggestBuy = "rising".equals(trendLower);
-        boolean trendSuggestWait = "falling".equals(trendLower);
-        boolean timeSuggestBuy = timePressure;
-        boolean timeSuggestWait = false; // time pressure never suggests wait in our heuristics
-
-        int conflictingSignals = 0;
-        List<String> conflictDetails = new ArrayList<>();
-        
-        if ("BUY".equals(decision)) {
-            if (priceSuggestWait) {
-                // strong expensive price should count as a stronger conflicting signal
-                if (percentile >= 0.85) conflictingSignals += 2; else conflictingSignals++;
-                conflictDetails.add("price is high");
-            }
-            if (trendSuggestWait) {
-                conflictingSignals++;
-                conflictDetails.add("trend suggests waiting");
-            }
-            if (timeSuggestWait) conflictingSignals++;
-        } else if ("WAIT".equals(decision)) {
-            if (priceSuggestBuy) {
-                if (percentile <= 0.15) conflictingSignals += 2; else conflictingSignals++;
-                conflictDetails.add("price is good");
-            }
-            if (trendSuggestBuy) {
-                conflictingSignals++;
-                conflictDetails.add("prices may rise soon");
-            }
-            if (timeSuggestBuy) {
-                conflictingSignals++;
-                conflictDetails.add("departure is soon");
-            }
-        }
-
-        if (conflictingSignals >= 2) {
-            confidence = Math.max(0.0, confidence - 0.10);
-        }
-
-        // penalize long multi-stop itineraries (reduce confidence)
+        // Penalize multi-stop itineraries
         try {
             Integer stops = option.getFlight() != null ? option.getFlight().getStops() : null;
             if (stops != null && stops > 1) {
-                reasons.add("Multiple stops reduce confidence in recommendation.");
-                confidence = Math.max(0.05, confidence - 0.15);
+                confidence = Math.max(0.05, confidence - 0.10);
             }
-        } catch (Exception ignored) {}
-
-        // ensure 0..1
-        confidence = Math.max(0.0, Math.min(1.0, confidence));
-
-        // Explanation strings
-        int pct = (int) Math.round(percentile * 100.0);
-        String priceText;
-        if (percentile >= 0.66) {
-            int mostExp = (int) Math.round((1.0 - percentile) * 100.0);
-            priceText = String.format("Price is in the most expensive %d%% of options for this search.", Math.max(1, mostExp));
-        } else if (percentile <= 0.33) {
-            priceText = String.format("Price is in the cheapest %d%% of options for this search.", Math.max(1, pct));
-        } else {
-            priceText = String.format("Price is at the ~%dth percentile among options for this search (0=cheapest,1=most expensive).", pct);
-        }
-        reasons.add(priceText);
-
-        String timeText = (daysToDeparture >= 0) ? String.format("Departure is in %d days.", daysToDeparture) : "Departure date not specified.";
-        reasons.add(timeText);
-
-        // Add trend with reason from price history or ML
-        if (trendReason != null && !trendReason.isEmpty()) {
-            reasons.add(trendReason);
-        } else {
-            reasons.add(String.format("Trend: %s.", trendStr));
+        } catch (Exception ignored) {
         }
 
-        // If BUY due to time pressure, add explicit message
-        boolean boughtForTimePressure = (timePressure && "BUY".equals(decision) && !("falling".equals(trendLower) && percentile >= 0.80));
-        if (boughtForTimePressure) {
-            if (percentile > 0.6) {
-                reasons.add("Even though price is high, departure is soon and prices usually rise—buying reduces risk.");
-            } else {
-                reasons.add("Departure is soon and prices usually rise—buying reduces risk.");
-            }
-        }
-        
-        // Add conflict explanation when signals disagree
-        if (conflictingSignals >= 1 && !conflictDetails.isEmpty()) {
-            String conflictNote = buildConflictExplanation(decision, conflictDetails, trendLower, timePressure, percentile);
-            if (conflictNote != null && !conflictNote.isEmpty()) {
-                reasons.add(conflictNote);
-            }
-        }
+        // === Step 8: Build reasons with conflict resolution ===
+        List<String> reasons =
+                buildReasons(
+                        percentile,
+                        daysToDeparture,
+                        trendStr,
+                        trendReason,
+                        dealRating,
+                        decision,
+                        overrideApplied,
+                        hasTimePressure,
+                        isUrgent,
+                        option);
 
-        // normalize reasons to 2-6 items
-        if (reasons.size() > 6) reasons = reasons.subList(0, 6);
+        // === Step 9: Build signals for debugging ===
+        BuyWaitDTO.SignalsDTO signals =
+                BuyWaitDTO.SignalsDTO.builder()
+                        .percentileScore(1.0 - percentile) // Invert: higher = better deal
+                        .urgencyScore(
+                                daysToDeparture >= 0
+                                        ? Math.max(0, 1.0 - (daysToDeparture / 30.0))
+                                        : 0.0)
+                        .trendScore(computeTrendScore(trendLower, trendConfidence))
+                        .decisionRule(decisionRule)
+                        .build();
 
-        BuyWaitDTO dto = BuyWaitDTO.builder()
+        // === Step 10: Diagnostic logging ===
+        logDiagnostics(
+                option,
+                percentile,
+                dealRating,
+                daysToDeparture,
+                trendStr,
+                trendConfidence,
+                decision,
+                decisionRule,
+                signals);
+
+        return BuyWaitDTO.builder()
                 .decision(decision)
                 .confidence(confidence)
                 .reasons(reasons)
                 .trend(trendStr)
+                .pricePercentile(percentile)
+                .dealRating(dealRating)
+                .daysUntilDeparture(daysToDeparture)
+                .trendConfidence(trendConfidence > 0 ? trendConfidence : null)
+                .overrideApplied(overrideApplied)
+                .signals(signals)
                 .build();
-
-        log.debug("Baseline buy/wait for option {} => {} (p={}, trend={})", option.getTripOptionId(), decision, percentile, trendStr);
-        return dto;
     }
-    
-    /**
-     * Build a human-readable explanation when signals conflict.
-     */
-    private String buildConflictExplanation(String decision, List<String> conflictDetails, 
-            String trendLower, boolean timePressure, double percentile) {
-        
-        if (conflictDetails.isEmpty()) {
-            return null;
+
+    /** Compute deal rating from price percentile. */
+    private String computeDealRating(double percentile) {
+        if (percentile <= 0.20) return "GREAT";
+        if (percentile <= GOOD_DEAL_PERCENTILE) return "GOOD";
+        if (percentile < POOR_DEAL_PERCENTILE) return "FAIR";
+        return "POOR";
+    }
+
+    /** Compute confidence score based on various factors. */
+    private double computeConfidence(
+            double percentile,
+            String trendLower,
+            double trendConfidence,
+            boolean hasTimePressure,
+            boolean isPoorDeal,
+            boolean overrideApplied) {
+        // Base confidence from price percentile distance from 0.5
+        double base = 0.5 + Math.abs(percentile - 0.5) * 0.5;
+
+        // Cap by trend certainty
+        double cap = 0.90;
+        if ("unknown".equals(trendLower)) cap = 0.55;
+        else if ("stable".equals(trendLower)) cap = 0.70;
+        else cap = 0.85;
+
+        double confidence = Math.min(base, cap);
+
+        // Reduce confidence for poor deals even with override
+        if (isPoorDeal) {
+            confidence = Math.max(0.30, confidence - 0.15);
         }
-        
-        StringBuilder sb = new StringBuilder();
-        sb.append("⚠️ Signals conflict: ");
-        
-        if ("WAIT".equals(decision)) {
-            // Recommendation is WAIT, but some signals suggest BUY
-            if (timePressure && ("rising".equals(trendLower) || conflictDetails.contains("departure is soon"))) {
-                sb.append("departure is soon (prices often rise), but ");
-                if (percentile > 0.7) {
-                    sb.append("this offer is priced high vs similar options; waiting may still help if you can monitor for dips.");
-                } else {
-                    sb.append("other factors suggest waiting could yield a better deal.");
-                }
-            } else if (conflictDetails.contains("prices may rise soon")) {
-                sb.append("prices may rise soon, but current price position suggests waiting could be worthwhile.");
-            } else if (conflictDetails.contains("price is good")) {
-                sb.append("price looks good relative to other options, but trend or timing suggests waiting.");
-            } else {
-                sb.append(String.join(" and ", conflictDetails));
-                sb.append(", but overall analysis favors waiting.");
-            }
-        } else if ("BUY".equals(decision)) {
-            // Recommendation is BUY, but some signals suggest WAIT
-            if ("falling".equals(trendLower)) {
-                sb.append("prices have been falling, but ");
-                if (percentile <= 0.35) {
-                    sb.append("this offer is already a strong deal vs current options.");
-                } else if (timePressure) {
-                    sb.append("departure is soon—buying now reduces risk of missing out.");
-                } else {
-                    sb.append("other factors favor buying now.");
-                }
-            } else if (conflictDetails.contains("price is high")) {
-                sb.append("price is high relative to other options, but ");
-                if (timePressure) {
-                    sb.append("departure is soon and prices typically rise—buying reduces risk.");
-                } else if ("rising".equals(trendLower)) {
-                    sb.append("prices are rising, so waiting may result in higher prices.");
-                } else {
-                    sb.append("overall analysis favors buying.");
-                }
-            } else {
-                sb.append(String.join(" and ", conflictDetails));
-                sb.append(", but overall analysis favors buying.");
-            }
+
+        // Reduce confidence when override is applied (signals conflict)
+        if (overrideApplied) {
+            confidence = Math.max(0.35, confidence - 0.10);
         }
-        
-        return sb.toString();
+
+        // Boost confidence slightly if trend confidence is high
+        if (trendConfidence >= 0.8) {
+            confidence = Math.min(0.90, confidence + 0.05);
+        }
+
+        return Math.max(0.0, Math.min(1.0, confidence));
+    }
+
+    /** Compute trend score for signals (higher = more buy pressure). */
+    private double computeTrendScore(String trendLower, double trendConfidence) {
+        return switch (trendLower) {
+            case "rising" -> 0.5 + (0.5 * trendConfidence);
+            case "falling" -> 0.5 - (0.5 * trendConfidence);
+            case "stable" -> 0.5;
+            default -> 0.5;
+        };
+    }
+
+    /** Build human-readable reasons with explicit conflict resolution. */
+    private List<String> buildReasons(
+            double percentile,
+            int daysToDeparture,
+            String trendStr,
+            String trendReason,
+            String dealRating,
+            String decision,
+            boolean overrideApplied,
+            boolean hasTimePressure,
+            boolean isUrgent,
+            TripOptionSummaryDTO option) {
+        List<String> reasons = new ArrayList<>();
+
+        // Price position explanation
+        String priceText = buildPriceExplanation(percentile, dealRating);
+        reasons.add(priceText);
+
+        // Time explanation
+        String timeText =
+                (daysToDeparture >= 0)
+                        ? String.format("Departure is in %d days.", daysToDeparture)
+                        : "Departure date not specified.";
+        reasons.add(timeText);
+
+        // Trend explanation
+        if (trendReason != null && !trendReason.isEmpty()) {
+            reasons.add(trendReason);
+        } else {
+            reasons.add(String.format("Price trend: %s.", trendStr));
+        }
+
+        // Multi-stop penalty note
+        try {
+            Integer stops = option.getFlight() != null ? option.getFlight().getStops() : null;
+            if (stops != null && stops > 1) {
+                reasons.add("Multiple stops reduce confidence in this recommendation.");
+            }
+        } catch (Exception ignored) {
+        }
+
+        // === Critical: Conflict resolution explanations ===
+        if (overrideApplied && "BUY".equals(decision) && "POOR".equals(dealRating)) {
+            // Override case: BUY on POOR deal - must explain clearly
+            if (isUrgent && daysToDeparture <= 3) {
+                reasons.add(
+                        "⚠️ Despite being expensive, we recommend BUY because departure is extremely soon "
+                                + "(prices typically spike in final days before departure).");
+            } else {
+                reasons.add(
+                        "⚠️ Despite being expensive vs alternatives, we recommend BUY because departure is "
+                                + "very soon AND prices are rising with high confidence—waiting is likely to be worse.");
+            }
+        } else if ("WAIT".equals(decision) && "POOR".equals(dealRating)) {
+            // Normal case: WAIT on POOR deal
+            reasons.add(
+                    "This offer is priced high relative to alternatives. Consider waiting for a better deal "
+                            + "or selecting a different option.");
+        } else if ("BUY".equals(decision) && hasTimePressure && percentile > 0.50) {
+            // BUY due to time pressure but not the best price
+            reasons.add(
+                    "Departure is approaching and prices often rise closer to travel dates—buying now reduces risk.");
+        } else if ("WAIT".equals(decision) && hasTimePressure) {
+            // WAIT despite time pressure
+            reasons.add(
+                    "Although departure is approaching, the falling trend suggests prices may still decrease.");
+        }
+
+        // Limit to 6 reasons max
+        if (reasons.size() > 6) {
+            reasons = new ArrayList<>(reasons.subList(0, 6));
+        }
+
+        return reasons;
+    }
+
+    /** Build price explanation text based on percentile and deal rating. */
+    private String buildPriceExplanation(double percentile, String dealRating) {
+        int pct = (int) Math.round(percentile * 100.0);
+        return switch (dealRating) {
+            case "GREAT" -> String.format(
+                    "🟢 Great deal: Price is in the cheapest %d%% of options.",
+                    Math.max(1, pct + 1));
+            case "GOOD" -> String.format(
+                    "🟢 Good deal: Price is in the cheaper half of options (top %d%%).",
+                    Math.max(1, 100 - pct));
+            case "FAIR" -> String.format(
+                    "🟡 Fair deal: Price is at the ~%dth percentile among options.", pct);
+            case "POOR" -> String.format(
+                    "🔴 Poor deal: Price is in the most expensive %d%% of options.",
+                    Math.max(1, 100 - pct));
+            default -> String.format("Price is at the ~%dth percentile among options.", pct);
+        };
+    }
+
+    /** Log diagnostic information for debugging (dev only). */
+    private void logDiagnostics(
+            TripOptionSummaryDTO option,
+            double percentile,
+            String dealRating,
+            int daysToDeparture,
+            String trendStr,
+            double trendConfidence,
+            String decision,
+            String decisionRule,
+            BuyWaitDTO.SignalsDTO signals) {
+        if (log.isDebugEnabled()) {
+            log.debug(
+                    """
+
+                === Buy/Wait Diagnostic ===
+                tripOptionId: {}
+                price: {} {}
+                percentile: {:.2f} ({}th)
+                dealRating: {}
+                daysUntilDeparture: {}
+                trend: {} (confidence: {:.2f})
+                decision: {}
+                decisionRule: {}
+                scoreComponents:
+                  percentileScore: {:.3f}
+                  urgencyScore: {:.3f}
+                  trendScore: {:.3f}
+                ===========================
+                """,
+                    option.getTripOptionId(),
+                    option.getTotalPrice(),
+                    option.getCurrency(),
+                    percentile,
+                    (int) (percentile * 100),
+                    dealRating,
+                    daysToDeparture,
+                    trendStr,
+                    trendConfidence,
+                    decision,
+                    decisionRule,
+                    signals.getPercentileScore(),
+                    signals.getUrgencyScore(),
+                    signals.getTrendScore());
+        }
     }
 }

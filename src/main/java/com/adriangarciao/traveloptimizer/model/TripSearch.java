@@ -1,23 +1,23 @@
 package com.adriangarciao.traveloptimizer.model;
 
+import com.adriangarciao.traveloptimizer.dto.TripType;
 import jakarta.persistence.*;
-import org.hibernate.annotations.GenericGenerator;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import org.hibernate.annotations.GenericGenerator;
 
 /**
  * JPA entity capturing a trip search submitted by a user.
  *
- * This entity is intentionally simple for the initial iteration and will
- * be expanded when persistence requirements are finalized.
+ * <p>This entity is intentionally simple for the initial iteration and will be expanded when
+ * persistence requirements are finalized.
  */
 @Entity
 @Table(name = "trip_search")
@@ -31,6 +31,12 @@ public class TripSearch {
     @GenericGenerator(name = "UUID", strategy = "org.hibernate.id.UUIDGenerator")
     @Column(name = "id", updatable = false, nullable = false)
     private UUID id;
+
+    /** Type of trip: ONE_WAY or ROUND_TRIP. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "trip_type", length = 16)
+    @Builder.Default
+    private TripType tripType = TripType.ONE_WAY;
 
     @Column(name = "origin", length = 16, nullable = false)
     private String origin;
@@ -50,6 +56,14 @@ public class TripSearch {
     @Column(name = "latest_return_date")
     private LocalDate latestReturnDate;
 
+    /** The actual departure date used in the Amadeus query. */
+    @Column(name = "selected_departure_date")
+    private LocalDate selectedDepartureDate;
+
+    /** The actual return date used in the Amadeus query (null for one-way). */
+    @Column(name = "selected_return_date")
+    private LocalDate selectedReturnDate;
+
     @Column(name = "max_budget", precision = 19, scale = 2)
     private BigDecimal maxBudget;
 
@@ -60,23 +74,26 @@ public class TripSearch {
     private Instant createdAt;
 
     /**
-     * Tracks how many flight offers have been fetched from the provider so far.
-     * Used for progressive pagination - when more results are needed, we fetch
-     * with a higher limit.
+     * Tracks how many flight offers have been fetched from the provider so far. Used for
+     * progressive pagination - when more results are needed, we fetch with a higher limit.
      */
     @Column(name = "flight_fetch_limit")
     @Builder.Default
     private int flightFetchLimit = 0;
 
     /**
-     * True if the provider has been exhausted (no more unique offers available).
-     * Set when a fetch returns fewer new offers than expected or returns duplicates only.
+     * True if the provider has been exhausted (no more unique offers available). Set when a fetch
+     * returns fewer new offers than expected or returns duplicates only.
      */
     @Column(name = "flight_exhausted")
     @Builder.Default
     private boolean flightExhausted = false;
 
-    @OneToMany(mappedBy = "tripSearch", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @OneToMany(
+            mappedBy = "tripSearch",
+            cascade = CascadeType.ALL,
+            orphanRemoval = true,
+            fetch = FetchType.LAZY)
     private List<TripOption> options;
 
     @PrePersist

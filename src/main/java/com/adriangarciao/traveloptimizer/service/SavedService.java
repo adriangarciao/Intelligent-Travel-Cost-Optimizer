@@ -1,7 +1,6 @@
 package com.adriangarciao.traveloptimizer.service;
 
 import com.adriangarciao.traveloptimizer.dto.SavedTripDTO;
-
 import java.util.List;
 import java.util.UUID;
 

@@ -1,6 +1,7 @@
 package com.adriangarciao.traveloptimizer.mapper;
 
 import com.adriangarciao.traveloptimizer.dto.FlightSummaryDTO;
+import com.adriangarciao.traveloptimizer.dto.FlightsDTO;
 import com.adriangarciao.traveloptimizer.dto.LodgingSummaryDTO;
 import com.adriangarciao.traveloptimizer.dto.TripOptionSummaryDTO;
 import com.adriangarciao.traveloptimizer.model.FlightOption;
@@ -18,32 +19,62 @@ public class TripOptionMapper {
         dto.setTotalPrice(entity.getTotalPrice());
         dto.setCurrency(entity.getCurrency());
         dto.setValueScore(entity.getValueScore());
+
+        // Set tripType from the associated TripSearch if available
+        if (entity.getTripSearch() != null && entity.getTripSearch().getTripType() != null) {
+            dto.setTripType(entity.getTripSearch().getTripType());
+        }
+
         // optional DEV-only breakdown
-        boolean debugBreakdown = Boolean.parseBoolean(System.getProperty("app.debug.valueScoreBreakdown", System.getenv().getOrDefault("APP_DEBUG_VALUE_SCORE_BREAKDOWN","false")));
+        boolean debugBreakdown =
+                Boolean.parseBoolean(
+                        System.getProperty(
+                                "app.debug.valueScoreBreakdown",
+                                System.getenv()
+                                        .getOrDefault("APP_DEBUG_VALUE_SCORE_BREAKDOWN", "false")));
         if (debugBreakdown && entity.getValueScoreBreakdown() != null) {
             dto.setValueScoreBreakdown(entity.getValueScoreBreakdown());
         }
         // map flight option; provide fallback object if missing
         if (entity.getFlightOption() != null) {
             FlightOption fOpt = entity.getFlightOption();
-            FlightSummaryDTO f = new FlightSummaryDTO();
-            f.setAirline(fOpt.getAirline());
-            f.setAirlineCode(fOpt.getAirlineCode());
-            f.setAirlineName(fOpt.getAirlineName());
-            f.setFlightNumber(fOpt.getFlightNumber());
-            f.setStops(fOpt.getStops());
-            f.setDuration(fOpt.getDuration());
-            // human-friendly duration text
-            if (fOpt.getDuration() != null) {
-                long mins = fOpt.getDuration().toMinutes();
-                long hrs = mins / 60;
-                long rem = mins % 60;
-                f.setDurationText(hrs > 0 ? String.format("%dh %dm", hrs, rem) : String.format("%dm", rem));
-            } else {
-                f.setDurationText(null);
+
+            // Build outbound flight summary
+            FlightSummaryDTO outbound =
+                    buildFlightSummary(
+                            fOpt.getAirline(),
+                            fOpt.getAirlineCode(),
+                            fOpt.getAirlineName(),
+                            fOpt.getFlightNumber(),
+                            fOpt.getStops(),
+                            fOpt.getDuration(),
+                            fOpt.getSegments(),
+                            fOpt.getDepartureDate(),
+                            fOpt.getPrice());
+
+            // Legacy 'flight' field for backward compatibility
+            dto.setFlight(outbound);
+
+            // New 'flights' structure with outbound/inbound
+            FlightsDTO.FlightsDTOBuilder flightsBuilder = FlightsDTO.builder().outbound(outbound);
+
+            // Build inbound flight summary if this is round-trip
+            if (fOpt.isRoundTrip()) {
+                FlightSummaryDTO inbound =
+                        buildFlightSummary(
+                                fOpt.getReturnAirline(),
+                                fOpt.getReturnAirlineCode(),
+                                fOpt.getReturnAirlineName(),
+                                fOpt.getReturnFlightNumber(),
+                                fOpt.getReturnStops() != null ? fOpt.getReturnStops() : 0,
+                                fOpt.getReturnDuration(),
+                                fOpt.getReturnSegments(),
+                                fOpt.getReturnDate(),
+                                null);
+                flightsBuilder.inbound(inbound);
             }
-            f.setSegments(fOpt.getSegments());
-            dto.setFlight(f);
+
+            dto.setFlights(flightsBuilder.build());
         } else {
             FlightSummaryDTO f = new FlightSummaryDTO();
             f.setAirline("Unknown");
@@ -52,12 +83,18 @@ public class TripOptionMapper {
             f.setDuration(null);
             f.setSegments(java.util.List.of());
             dto.setFlight(f);
+            dto.setFlights(FlightsDTO.builder().outbound(f).build());
         }
         // map persisted ML recommendation JSON back into DTO if present
-        if (entity.getMlRecommendationJson() != null && !entity.getMlRecommendationJson().isBlank()) {
+        if (entity.getMlRecommendationJson() != null
+                && !entity.getMlRecommendationJson().isBlank()) {
             try {
-                com.fasterxml.jackson.databind.ObjectMapper om = new com.fasterxml.jackson.databind.ObjectMapper();
-                com.adriangarciao.traveloptimizer.dto.MlRecommendationDTO ml = om.readValue(entity.getMlRecommendationJson(), com.adriangarciao.traveloptimizer.dto.MlRecommendationDTO.class);
+                com.fasterxml.jackson.databind.ObjectMapper om =
+                        new com.fasterxml.jackson.databind.ObjectMapper();
+                com.adriangarciao.traveloptimizer.dto.MlRecommendationDTO ml =
+                        om.readValue(
+                                entity.getMlRecommendationJson(),
+                                com.adriangarciao.traveloptimizer.dto.MlRecommendationDTO.class);
                 dto.setMlRecommendation(ml);
             } catch (Exception e) {
                 // ignore parse errors
@@ -135,7 +172,8 @@ public class TripOptionMapper {
             long mins = flight.getDuration().toMinutes();
             long hrs = mins / 60;
             long rem = mins % 60;
-            dto.setDurationText(hrs > 0 ? String.format("%dh %dm", hrs, rem) : String.format("%dm", rem));
+            dto.setDurationText(
+                    hrs > 0 ? String.format("%dh %dm", hrs, rem) : String.format("%dm", rem));
         } else {
             dto.setDurationText(null);
         }
@@ -176,5 +214,42 @@ public class TripOptionMapper {
         l.setPricePerNight(dto.getPricePerNight());
         l.setNights(dto.getNights());
         return l;
+    }
+
+    /** Helper method to build a FlightSummaryDTO from flight data. */
+    private FlightSummaryDTO buildFlightSummary(
+            String airline,
+            String airlineCode,
+            String airlineName,
+            String flightNumber,
+            int stops,
+            java.time.Duration duration,
+            java.util.List<String> segments,
+            java.time.LocalDate departureDate,
+            java.math.BigDecimal price) {
+
+        FlightSummaryDTO f = new FlightSummaryDTO();
+        f.setAirline(airline);
+        f.setAirlineCode(airlineCode);
+        f.setAirlineName(airlineName);
+        f.setFlightNumber(flightNumber);
+        f.setStops(stops);
+        f.setDuration(duration);
+        f.setSegments(segments != null ? segments : java.util.List.of());
+        f.setDepartureDate(departureDate);
+        f.setPrice(price);
+
+        // human-friendly duration text
+        if (duration != null) {
+            long mins = duration.toMinutes();
+            long hrs = mins / 60;
+            long rem = mins % 60;
+            f.setDurationText(
+                    hrs > 0 ? String.format("%dh %dm", hrs, rem) : String.format("%dm", rem));
+        } else {
+            f.setDurationText(null);
+        }
+
+        return f;
     }
 }

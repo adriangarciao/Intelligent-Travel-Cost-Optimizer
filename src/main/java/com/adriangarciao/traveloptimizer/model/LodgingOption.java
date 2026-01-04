@@ -1,17 +1,14 @@
 package com.adriangarciao.traveloptimizer.model;
 
 import jakarta.persistence.*;
+import java.math.BigDecimal;
+import java.util.UUID;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.math.BigDecimal;
-import java.util.UUID;
-
-/**
- * JPA entity capturing lodging/hotel option details associated to a trip option.
- */
+/** JPA entity capturing lodging/hotel option details associated to a trip option. */
 @Entity
 @Table(name = "lodging_option")
 @Data
@@ -21,7 +18,9 @@ import java.util.UUID;
 public class LodgingOption {
     @Id
     @GeneratedValue(generator = "UUID")
-    @org.hibernate.annotations.GenericGenerator(name = "UUID", strategy = "org.hibernate.id.UUIDGenerator")
+    @org.hibernate.annotations.GenericGenerator(
+            name = "UUID",
+            strategy = "org.hibernate.id.UUIDGenerator")
     @Column(name = "id", updatable = false, nullable = false)
     private UUID id;
 

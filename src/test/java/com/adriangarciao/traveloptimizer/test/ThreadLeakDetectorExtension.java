@@ -1,11 +1,8 @@
 package com.adriangarciao.traveloptimizer.test;
 
+import java.util.Map;
 import org.junit.jupiter.api.extension.AfterAllCallback;
 import org.junit.jupiter.api.extension.ExtensionContext;
-
-import java.io.PrintWriter;
-import java.io.StringWriter;
-import java.util.Map;
 
 public class ThreadLeakDetectorExtension implements AfterAllCallback {
 
@@ -22,13 +19,19 @@ public class ThreadLeakDetectorExtension implements AfterAllCallback {
             if (t.isDaemon()) continue;
             // Skip common JUnit/Testcontainers threads that are expected (we will still print them)
             count++;
-            sb.append("--- Thread: ").append(t.getName()).append(" (id=").append(t.getId()).append(")\n");
+            sb.append("--- Thread: ")
+                    .append(t.getName())
+                    .append(" (id=")
+                    .append(t.getId())
+                    .append(")\n");
             for (StackTraceElement st : e.getValue()) {
                 sb.append("    at ").append(st.toString()).append("\n");
             }
         }
 
-        sb.append("=== ThreadLeakDetector: total non-daemon threads: ").append(count).append(" ===\n");
+        sb.append("=== ThreadLeakDetector: total non-daemon threads: ")
+                .append(count)
+                .append(" ===\n");
 
         if (count > 0) {
             // Print to stderr to ensure visibility in Surefire console output

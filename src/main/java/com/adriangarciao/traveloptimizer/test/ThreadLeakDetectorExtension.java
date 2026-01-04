@@ -1,9 +1,8 @@
 package com.adriangarciao.traveloptimizer.test;
 
+import java.util.Map;
 import org.junit.jupiter.api.extension.AfterAllCallback;
 import org.junit.jupiter.api.extension.ExtensionContext;
-
-import java.util.Map;
 
 public class ThreadLeakDetectorExtension implements AfterAllCallback {
 
@@ -19,13 +18,19 @@ public class ThreadLeakDetectorExtension implements AfterAllCallback {
             if (t == Thread.currentThread()) continue;
             if (t.isDaemon()) continue;
             count++;
-            sb.append("--- Thread: ").append(t.getName()).append(" (id=").append(t.getId()).append(")\n");
+            sb.append("--- Thread: ")
+                    .append(t.getName())
+                    .append(" (id=")
+                    .append(t.getId())
+                    .append(")\n");
             for (StackTraceElement st : e.getValue()) {
                 sb.append("    at ").append(st.toString()).append("\n");
             }
         }
 
-        sb.append("=== ThreadLeakDetector: total non-daemon threads: ").append(count).append(" ===\n");
+        sb.append("=== ThreadLeakDetector: total non-daemon threads: ")
+                .append(count)
+                .append(" ===\n");
 
         if (count > 0) {
             System.err.println(sb.toString());
