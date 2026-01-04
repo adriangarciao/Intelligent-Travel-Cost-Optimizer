@@ -4,21 +4,20 @@ import com.adriangarciao.traveloptimizer.dto.MlBestDateWindowDTO;
 import com.adriangarciao.traveloptimizer.dto.MlRecommendationDTO;
 import com.adriangarciao.traveloptimizer.dto.TripOptionSummaryDTO;
 import com.adriangarciao.traveloptimizer.dto.TripSearchRequestDTO;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
-import org.springframework.stereotype.Component;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import javax.annotation.PostConstruct;
-import org.springframework.web.client.RestTemplate;
-import org.springframework.web.client.HttpStatusCodeException;
-
 import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import javax.annotation.PostConstruct;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.stereotype.Component;
+import org.springframework.web.client.HttpStatusCodeException;
+import org.springframework.web.client.RestTemplate;
 
 @Slf4j
 @Component
@@ -32,7 +31,8 @@ public class SimpleMlClient implements MlClient {
     private int mlTimeoutMs;
 
     private RestTemplate restTemplate() {
-        org.springframework.http.client.SimpleClientHttpRequestFactory rf = new org.springframework.http.client.SimpleClientHttpRequestFactory();
+        org.springframework.http.client.SimpleClientHttpRequestFactory rf =
+                new org.springframework.http.client.SimpleClientHttpRequestFactory();
         rf.setConnectTimeout(mlTimeoutMs);
         rf.setReadTimeout(mlTimeoutMs);
         return new RestTemplate(rf);
@@ -56,10 +56,15 @@ public class SimpleMlClient implements MlClient {
             HttpEntity<Map<String, Object>> entity = new HttpEntity<>(payload, headers);
             Map res = restTemplate().postForObject(url, entity, Map.class);
             if (res != null) {
-                MlBestDateWindowDTO dto = MlBestDateWindowDTO.builder()
-                        .recommendedDepartureDate(req.getEarliestDepartureDate().plusDays(7))
-                        .confidence(res.containsKey("confidence") ? Double.valueOf(res.get("confidence").toString()) : 0.5)
-                        .build();
+                MlBestDateWindowDTO dto =
+                        MlBestDateWindowDTO.builder()
+                                .recommendedDepartureDate(
+                                        req.getEarliestDepartureDate().plusDays(7))
+                                .confidence(
+                                        res.containsKey("confidence")
+                                                ? Double.valueOf(res.get("confidence").toString())
+                                                : 0.5)
+                                .build();
                 return dto;
             }
         } catch (HttpStatusCodeException he) {
@@ -71,10 +76,15 @@ public class SimpleMlClient implements MlClient {
     }
 
     @Override
-    public MlRecommendationDTO getOptionRecommendation(TripOptionSummaryDTO option, TripSearchRequestDTO request, List<TripOptionSummaryDTO> allOptions) {
+    public MlRecommendationDTO getOptionRecommendation(
+            TripOptionSummaryDTO option,
+            TripSearchRequestDTO request,
+            List<TripOptionSummaryDTO> allOptions) {
         try {
             Map<String, Object> features = new HashMap<>();
-            features.put("route", Map.of("origin", request.getOrigin(), "destination", request.getDestination()));
+            features.put(
+                    "route",
+                    Map.of("origin", request.getOrigin(), "destination", request.getDestination()));
             LocalDate dep = request.getEarliestDepartureDate();
             long daysToDeparture = java.time.temporal.ChronoUnit.DAYS.between(LocalDate.now(), dep);
             features.put("departureDate", dep.toString());
@@ -86,9 +96,12 @@ public class SimpleMlClient implements MlClient {
                 durationMinutes = option.getFlight().getDuration().toMinutes();
             }
             features.put("durationMinutes", durationMinutes);
-            double price = option.getTotalPrice() != null ? option.getTotalPrice().doubleValue() : 0.0;
+            double price =
+                    option.getTotalPrice() != null ? option.getTotalPrice().doubleValue() : 0.0;
             features.put("price", price);
-            features.put("airlineCode", option.getFlight() != null ? option.getFlight().getAirlineCode() : null);
+            features.put(
+                    "airlineCode",
+                    option.getFlight() != null ? option.getFlight().getAirlineCode() : null);
 
             double percentile = 0.5;
             if (allOptions != null && !allOptions.isEmpty()) {
@@ -107,12 +120,19 @@ public class SimpleMlClient implements MlClient {
             HttpEntity<Map<String, Object>> entity = new HttpEntity<>(features, headers);
             Map resp = restTemplate().postForObject(url, entity, Map.class);
             if (resp != null && resp.containsKey("action")) {
-                MlRecommendationDTO dto = MlRecommendationDTO.builder()
-                        .action((String) resp.get("action"))
-                        .trend((String) resp.getOrDefault("trend", "stable"))
-                        .confidence(resp.containsKey("confidence") ? Double.valueOf(resp.get("confidence").toString()) : 0.0)
-                        .reasons(resp.containsKey("reasons") ? (java.util.List<String>) resp.get("reasons") : java.util.List.of())
-                        .build();
+                MlRecommendationDTO dto =
+                        MlRecommendationDTO.builder()
+                                .action((String) resp.get("action"))
+                                .trend((String) resp.getOrDefault("trend", "stable"))
+                                .confidence(
+                                        resp.containsKey("confidence")
+                                                ? Double.valueOf(resp.get("confidence").toString())
+                                                : 0.0)
+                                .reasons(
+                                        resp.containsKey("reasons")
+                                                ? (java.util.List<String>) resp.get("reasons")
+                                                : java.util.List.of())
+                                .build();
                 return dto;
             }
         } catch (HttpStatusCodeException he) {
@@ -131,7 +151,9 @@ public class SimpleMlClient implements MlClient {
             }
             pricePercentile = ((double) less) / allOptions.size();
         }
-        long daysToDeparture = java.time.temporal.ChronoUnit.DAYS.between(LocalDate.now(), request.getEarliestDepartureDate());
+        long daysToDeparture =
+                java.time.temporal.ChronoUnit.DAYS.between(
+                        LocalDate.now(), request.getEarliestDepartureDate());
         String action = (daysToDeparture <= 7 && pricePercentile <= 0.35) ? "BUY" : "WAIT";
         String trend = "stable";
         double confidence = 0.55;

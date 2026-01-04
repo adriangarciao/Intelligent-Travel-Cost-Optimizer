@@ -13,11 +13,27 @@ public class FlightSearchResult {
         this.message = message;
     }
 
-    public List<FlightOffer> getOffers() { return offers; }
-    public ProviderStatus getStatus() { return status; }
-    public String getMessage() { return message; }
+    public List<FlightOffer> getOffers() {
+        return offers;
+    }
 
-    public static FlightSearchResult ok(List<FlightOffer> offers) { return new FlightSearchResult(offers, ProviderStatus.OK, null); }
-    public static FlightSearchResult noResults() { return new FlightSearchResult(List.of(), ProviderStatus.NO_RESULTS, null); }
-    public static FlightSearchResult failure(ProviderStatus status, String message) { return new FlightSearchResult(List.of(), status, message); }
+    public ProviderStatus getStatus() {
+        return status;
+    }
+
+    public String getMessage() {
+        return message;
+    }
+
+    public static FlightSearchResult ok(List<FlightOffer> offers) {
+        return new FlightSearchResult(offers, ProviderStatus.OK, null);
+    }
+
+    public static FlightSearchResult noResults() {
+        return new FlightSearchResult(List.of(), ProviderStatus.NO_RESULTS, null);
+    }
+
+    public static FlightSearchResult failure(ProviderStatus status, String message) {
+        return new FlightSearchResult(List.of(), status, message);
+    }
 }

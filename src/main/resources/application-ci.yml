@@ -1,0 +1,44 @@
+# CI profile: used in GitHub Actions to run tests without external dependencies
+# All external services are mocked/disabled to ensure tests don't require secrets
+
+spring:
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration
+      - org.springframework.boot.autoconfigure.security.servlet.UserDetailsServiceAutoConfiguration
+      - org.springframework.boot.actuate.autoconfigure.security.servlet.ManagementWebSecurityAutoConfiguration
+  datasource:
+    url: jdbc:h2:mem:cidb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+  cache:
+    type: none
+  data:
+    redis:
+      # Disable Redis in CI to avoid requiring a Redis container
+      repositories:
+        enabled: false
+
+# Disable external providers
+ml:
+  enabled: false
+
+amadeus:
+  enabled: false
+
+# Use mock flight provider
+travel:
+  providers:
+    flights: mock
+
+# Minimal actuator exposure for CI
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health

@@ -1,14 +1,12 @@
 package com.adriangarciao.traveloptimizer.dto;
 
+import java.io.Serializable;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import java.io.Serializable;
 
-/**
- * Small structure carrying ML-driven recommendations for a trip option.
- */
+/** Small structure carrying ML-driven recommendations for a trip option. */
 @Data
 @Builder
 @NoArgsConstructor

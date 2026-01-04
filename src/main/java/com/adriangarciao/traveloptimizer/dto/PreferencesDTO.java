@@ -2,18 +2,16 @@ package com.adriangarciao.traveloptimizer.dto;
 
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Size;
+import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.util.List;
-
 /**
  * User preferences for a trip search.
- * <p>
- * Minimal DTO carrying user filtering/preferences for flights and lodging.
- * </p>
+ *
+ * <p>Minimal DTO carrying user filtering/preferences for flights and lodging.
  */
 @Data
 @Builder

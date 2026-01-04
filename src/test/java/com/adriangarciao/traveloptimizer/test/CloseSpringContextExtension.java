@@ -1,13 +1,12 @@
 package com.adriangarciao.traveloptimizer.test;
 
-import org.junit.jupiter.api.extension.AfterAllCallback;
-import org.junit.jupiter.api.extension.ExtensionContext;
-import org.springframework.context.ConfigurableApplicationContext;
-import org.springframework.boot.web.server.servlet.context.ServletWebServerApplicationContext;
-import org.testcontainers.DockerClientFactory;
-
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
+import org.junit.jupiter.api.extension.AfterAllCallback;
+import org.junit.jupiter.api.extension.ExtensionContext;
+import org.springframework.boot.web.server.servlet.context.ServletWebServerApplicationContext;
+import org.springframework.context.ConfigurableApplicationContext;
+import org.testcontainers.DockerClientFactory;
 
 public class CloseSpringContextExtension implements AfterAllCallback {
 
@@ -15,7 +14,12 @@ public class CloseSpringContextExtension implements AfterAllCallback {
     public void afterAll(ExtensionContext context) throws Exception {
         // Close any ConfigurableApplicationContext found on test instances
         try {
-            context.getTestInstances().ifPresent(instances -> instances.getAllInstances().forEach(this::closeContextFromInstance));
+            context.getTestInstances()
+                    .ifPresent(
+                            instances ->
+                                    instances
+                                            .getAllInstances()
+                                            .forEach(this::closeContextFromInstance));
         } catch (Throwable ignored) {
         }
 
@@ -33,7 +37,8 @@ public class CloseSpringContextExtension implements AfterAllCallback {
 
         // Also attempt to stop any static Testcontainers GenericContainer fields
         try {
-            Class<?> genericContainerClass = Class.forName("org.testcontainers.containers.GenericContainer");
+            Class<?> genericContainerClass =
+                    Class.forName("org.testcontainers.containers.GenericContainer");
             for (Field f : testClass.getDeclaredFields()) {
                 if (!Modifier.isStatic(f.getModifiers())) continue;
                 if (!genericContainerClass.isAssignableFrom(f.getType())) continue;
@@ -57,37 +62,43 @@ public class CloseSpringContextExtension implements AfterAllCallback {
             try {
                 var closeM = inst.getClass().getMethod("close");
                 closeM.invoke(inst);
-                } catch (Throwable ignored) {
+            } catch (Throwable ignored) {
             }
         } catch (Throwable ignored) {
         }
 
         // Force-interrupt any lingering Tomcat threads that keep the JVM alive for tests
         try {
-            Thread.getAllStackTraces().keySet().forEach(t -> {
-                try {
-                    String n = t.getName();
-                        if (n != null && (n.startsWith("container-") || n.startsWith("Catalina-utility-"))) {
-                        try {
-                            t.interrupt();
-                        } catch (Throwable ignored2) {
-                        }
-                        try {
-                            // Wait up to 2s for Tomcat/Testcontainers threads to exit after interrupt
-                            t.join(2000);
-                        } catch (Throwable ignored3) {
-                        }
-                        if (t.isAlive()) {
-                            try {
-                                t.interrupt();
-                                t.join(500);
-                            } catch (Throwable ignored4) {
-                            }
-                        }
-                    }
-                } catch (Throwable ignored4) {
-                }
-            });
+            Thread.getAllStackTraces()
+                    .keySet()
+                    .forEach(
+                            t -> {
+                                try {
+                                    String n = t.getName();
+                                    if (n != null
+                                            && (n.startsWith("container-")
+                                                    || n.startsWith("Catalina-utility-"))) {
+                                        try {
+                                            t.interrupt();
+                                        } catch (Throwable ignored2) {
+                                        }
+                                        try {
+                                            // Wait up to 2s for Tomcat/Testcontainers threads to
+                                            // exit after interrupt
+                                            t.join(2000);
+                                        } catch (Throwable ignored3) {
+                                        }
+                                        if (t.isAlive()) {
+                                            try {
+                                                t.interrupt();
+                                                t.join(500);
+                                            } catch (Throwable ignored4) {
+                                            }
+                                        }
+                                    }
+                                } catch (Throwable ignored4) {
+                                }
+                            });
         } catch (Throwable ignored) {
         }
     }
@@ -109,7 +120,8 @@ public class CloseSpringContextExtension implements AfterAllCallback {
 
         // Also stop any Testcontainers fields on the instance
         try {
-            Class<?> genericContainerClass = Class.forName("org.testcontainers.containers.GenericContainer");
+            Class<?> genericContainerClass =
+                    Class.forName("org.testcontainers.containers.GenericContainer");
             for (Field f : c.getDeclaredFields()) {
                 if (!genericContainerClass.isAssignableFrom(f.getType())) continue;
                 f.setAccessible(true);
@@ -137,11 +149,16 @@ public class CloseSpringContextExtension implements AfterAllCallback {
                     var webServer = swc.getWebServer();
                     if (webServer != null) {
                         try {
-                            System.out.println("[CloseSpringContextExtension] calling webServer.stop() on " + webServer.getClass().getName());
+                            System.out.println(
+                                    "[CloseSpringContextExtension] calling webServer.stop() on "
+                                            + webServer.getClass().getName());
                             webServer.stop();
-                            System.out.println("[CloseSpringContextExtension] webServer.stop() returned");
+                            System.out.println(
+                                    "[CloseSpringContextExtension] webServer.stop() returned");
                         } catch (Throwable ignored) {
-                            System.out.println("[CloseSpringContextExtension] webServer.stop() threw: " + ignored);
+                            System.out.println(
+                                    "[CloseSpringContextExtension] webServer.stop() threw: "
+                                            + ignored);
                         }
                     }
                 }
@@ -156,25 +173,39 @@ public class CloseSpringContextExtension implements AfterAllCallback {
                         try {
                             var getTomcat = webServer.getClass().getMethod("getTomcat");
                             Object tomcat = getTomcat.invoke(webServer);
-                            System.out.println("[CloseSpringContextExtension] found tomcat instance: " + (tomcat==null?"null":tomcat.getClass().getName()));
+                            System.out.println(
+                                    "[CloseSpringContextExtension] found tomcat instance: "
+                                            + (tomcat == null
+                                                    ? "null"
+                                                    : tomcat.getClass().getName()));
                             if (tomcat != null) {
-                                    try {
-                                        var getServer = tomcat.getClass().getMethod("getServer");
-                                        Object server = getServer.invoke(tomcat);
-                                        System.out.println("[CloseSpringContextExtension] found server instance: " + (server==null?"null":server.getClass().getName()));
-                                        if (server != null) {
-                                            try {
-                                                var stop = server.getClass().getMethod("stop");
-                                                System.out.println("[CloseSpringContextExtension] calling server.stop()");
-                                                stop.invoke(server);
-                                                System.out.println("[CloseSpringContextExtension] server.stop() returned");
-                                            } catch (Throwable ignored2) {
-                                                System.out.println("[CloseSpringContextExtension] server.stop() not found or threw: " + ignored2);
-                                            }
+                                try {
+                                    var getServer = tomcat.getClass().getMethod("getServer");
+                                    Object server = getServer.invoke(tomcat);
+                                    System.out.println(
+                                            "[CloseSpringContextExtension] found server instance: "
+                                                    + (server == null
+                                                            ? "null"
+                                                            : server.getClass().getName()));
+                                    if (server != null) {
+                                        try {
+                                            var stop = server.getClass().getMethod("stop");
+                                            System.out.println(
+                                                    "[CloseSpringContextExtension] calling server.stop()");
+                                            stop.invoke(server);
+                                            System.out.println(
+                                                    "[CloseSpringContextExtension] server.stop() returned");
+                                        } catch (Throwable ignored2) {
+                                            System.out.println(
+                                                    "[CloseSpringContextExtension] server.stop() not found or threw: "
+                                                            + ignored2);
                                         }
-                                    } catch (Throwable ignored2) {
-                                        System.out.println("[CloseSpringContextExtension] getServer() not found on tomcat instance: " + ignored2);
                                     }
+                                } catch (Throwable ignored2) {
+                                    System.out.println(
+                                            "[CloseSpringContextExtension] getServer() not found on tomcat instance: "
+                                                    + ignored2);
+                                }
                             }
                         } catch (Throwable ignored) {
                         }

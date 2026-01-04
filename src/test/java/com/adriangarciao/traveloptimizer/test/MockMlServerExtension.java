@@ -5,8 +5,8 @@ import org.junit.jupiter.api.extension.BeforeAllCallback;
 import org.junit.jupiter.api.extension.ExtensionContext;
 
 /**
- * No-op compatibility shim for legacy tests during migration to WireMock.
- * Remaining references to `MockMlServerExtension` will be harmless no-ops.
+ * No-op compatibility shim for legacy tests during migration to WireMock. Remaining references to
+ * `MockMlServerExtension` will be harmless no-ops.
  */
 public class MockMlServerExtension implements BeforeAllCallback, AfterAllCallback {
     @Override

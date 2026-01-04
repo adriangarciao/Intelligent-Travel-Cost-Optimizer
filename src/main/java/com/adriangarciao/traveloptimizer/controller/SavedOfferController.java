@@ -3,12 +3,11 @@ package com.adriangarciao.traveloptimizer.controller;
 import com.adriangarciao.traveloptimizer.dto.SavedOfferDTO;
 import com.adriangarciao.traveloptimizer.service.SavedOfferService;
 import jakarta.validation.Valid;
+import java.util.List;
+import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
-import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/saved/offers")
@@ -21,13 +20,15 @@ public class SavedOfferController {
     }
 
     private String extractClientId(String clientId) {
-        if (clientId == null || clientId.isBlank()) throw new IllegalArgumentException("Missing X-Client-Id header");
+        if (clientId == null || clientId.isBlank())
+            throw new IllegalArgumentException("Missing X-Client-Id header");
         return clientId;
     }
 
     @PostMapping
-    public ResponseEntity<?> save(@RequestHeader(value = "X-Client-Id", required = false) String clientId,
-                                  @Valid @RequestBody SavedOfferDTO payload) {
+    public ResponseEntity<?> save(
+            @RequestHeader(value = "X-Client-Id", required = false) String clientId,
+            @Valid @RequestBody SavedOfferDTO payload) {
         try {
             String cid = extractClientId(clientId);
             SavedOfferDTO saved = service.save(cid, payload);
@@ -38,7 +39,8 @@ public class SavedOfferController {
     }
 
     @GetMapping
-    public ResponseEntity<?> list(@RequestHeader(value = "X-Client-Id", required = false) String clientId) {
+    public ResponseEntity<?> list(
+            @RequestHeader(value = "X-Client-Id", required = false) String clientId) {
         try {
             String cid = extractClientId(clientId);
             List<SavedOfferDTO> list = service.list(cid);
@@ -49,8 +51,9 @@ public class SavedOfferController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<?> delete(@RequestHeader(value = "X-Client-Id", required = false) String clientId,
-                                    @PathVariable("id") UUID id) {
+    public ResponseEntity<?> delete(
+            @RequestHeader(value = "X-Client-Id", required = false) String clientId,
+            @PathVariable("id") UUID id) {
         try {
             String cid = extractClientId(clientId);
             service.delete(cid, id);

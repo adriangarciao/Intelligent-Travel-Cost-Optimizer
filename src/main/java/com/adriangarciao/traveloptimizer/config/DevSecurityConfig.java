@@ -8,8 +8,8 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.security.config.Customizer;
-import org.springframework.security.config.annotation.web.configuration.WebSecurityCustomizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configuration.WebSecurityCustomizer;
 import org.springframework.security.web.SecurityFilterChain;
 
 @Configuration
@@ -22,12 +22,11 @@ public class DevSecurityConfig {
     @Order(Ordered.HIGHEST_PRECEDENCE)
     public SecurityFilterChain permitAllSecurityFilterChain(HttpSecurity http) throws Exception {
         log.info("Activating dev-no-security SecurityFilterChain: permitting all requests");
-        http
-            .authorizeHttpRequests(authorize -> authorize.anyRequest().permitAll())
-            .csrf(csrf -> csrf.disable())
-            .httpBasic(Customizer.withDefaults())
-            .formLogin(Customizer.withDefaults())
-            .logout(Customizer.withDefaults());
+        http.authorizeHttpRequests(authorize -> authorize.anyRequest().permitAll())
+                .csrf(csrf -> csrf.disable())
+                .httpBasic(Customizer.withDefaults())
+                .formLogin(Customizer.withDefaults())
+                .logout(Customizer.withDefaults());
         return http.build();
     }
 
