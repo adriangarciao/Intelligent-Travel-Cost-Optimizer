@@ -233,6 +233,16 @@ export async function sendFeedback(payload: FeedbackEventPayload): Promise<void>
   }
 }
 
+export async function getDemoStatus(): Promise<{ demoMode: boolean }> {
+  try {
+    const res = await fetch(`${BASE}/api/demo-status`)
+    if (!res.ok) return { demoMode: false }
+    return (await res.json()) as { demoMode: boolean }
+  } catch {
+    return { demoMode: false }
+  }
+}
+
 /**
  * Fetch smart filter suggestions for the current user based on their
  * interaction history (saves, dismisses, etc.)
