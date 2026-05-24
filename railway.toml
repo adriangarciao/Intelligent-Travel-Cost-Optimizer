@@ -1,6 +1,6 @@
 [build]
 builder = "NIXPACKS"
-buildCommand = "./mvnw -DskipTests package"
+buildCommand = "chmod +x ./mvnw && ./mvnw -DskipTests package"
 
 [deploy]
 startCommand = "java -Dserver.port=$PORT -jar target/traveloptimizer-0.0.1-SNAPSHOT.jar"
