@@ -12,9 +12,12 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        http.authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/actuator/health").permitAll()
-                        .anyRequest().authenticated())
+        http.authorizeHttpRequests(
+                        auth ->
+                                auth.requestMatchers("/actuator/health")
+                                        .permitAll()
+                                        .anyRequest()
+                                        .authenticated())
                 .csrf(csrf -> csrf.disable())
                 .httpBasic(basic -> basic.disable())
                 .formLogin(form -> form.disable());
