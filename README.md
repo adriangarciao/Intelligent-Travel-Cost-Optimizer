@@ -1,168 +1,91 @@
 # TravelOptimizer
 
-TravelOptimizer is a developer-focused prototype for smarter flight decisions. It fetches real flight offers (Amadeus), normalizes results, scores each offer with a Value Score, and provides a Buy/Wait recommendation (ML or baseline heuristic) and comparison tools to help users decide.
+[![CI](https://github.com/adriangarciao/Intelligent-Travel-Cost-Optimizer/actions/workflows/ci.yml/badge.svg)](https://github.com/adriangarciao/Intelligent-Travel-Cost-Optimizer/actions/workflows/ci.yml)
 
-Demo
+**Live Demo:** [https://YOUR_RAILWAY_URL](https://YOUR_RAILWAY_URL) _(replace with your Railway deployment URL)_
 
 The following screenshots walk through the main flows:
 
-- Hero page: frontend/public/images/heropage.png
+> **Demo mode:** The live deployment uses mock flight data — no real API calls are made. Airlines, prices, and routes are realistic but generated. To run with live Amadeus flights locally, see [Local Setup](#local-setup).
 
-  ![Hero page](frontend/public/images/heropage.png)
+## Screenshots
 
-  Caption: Landing view with branding and the primary search form. The hero highlights the app value and contains the centered search card used to start searches.
+| Hero page | Search form | Results page | Compare page |
+|---|---|---|---|
+| ![Hero page](frontend/public/images/heropage.png) | ![Search form](frontend/public/images/searchform.png) | ![Results page](frontend/public/images/resultspage.png) | ![Compare page](frontend/public/images/comparePage.png) |
 
-- Search form: frontend/public/images/searchform.png
+## Key features
 
-  ![Search form](frontend/public/images/searchform.png)
+**Search and browsing**
+- Date window searches (earliest/latest), one-way and round-trip
+- Paginated results via backend pagination endpoint
+- Per-option detail view with price, segments, flags, and score breakdown
 
-  Caption: Focused view of the search form showing origin, destination, date window, and trip type toggles. Submitting this form posts to `/api/trips/search` and navigates to results.
+**Decision support**
+- Value Score (0–1) ranks offers relative to others in the same search
+- Deal Meter shows percentile position within the current search
+- Buy/Wait recommendation from ML client or built-in baseline heuristic
 
-- Results page: frontend/public/images/resultspage.png
+**Productivity**
+- Save offers and searches (server-backed, keyed by `X-Client-Id` header)
+- Compare up to 3 offers side-by-side
+- Export / share saved offers
 
-  ![Results page](frontend/public/images/resultspage.png)
+**Engineering**
+- Provider abstraction — mock (default) and Amadeus implementations
+- Optional Redis caching and Micrometer metrics via Spring Actuator
+- Integration tests with Testcontainers and WireMock
 
-  Caption: Paginated search results with price, Value Score, Deal Meter, and quick actions. Click "View Details" for the score breakdown and Buy/Wait recommendation.
+## Architecture
 
-- Compare page: frontend/public/images/comparePage.png
-
-  ![Compare page](frontend/public/images/comparePage.png)
-
-  Caption: Side-by-side comparison of saved offers. Useful fields are price, duration, stops, and the Value Score to help decide between options.
-
-Key features
-
-- Search and browsing
-  - Date window searches (earliest/latest), one-way and round-trip.
-  - Pagination for options via backend pagination endpoint.
-  - View details per option that exposes price, segments, flags, and score breakdown when available.
-- Decision support
-  - Value Score (0-1) ranks offers relative to other offers within the same search.
-  - Deal Meter shows percentile position within the current search.
-  - Buy/Wait recommendation comes from an ML client or a built-in baseline rule set when ML is disabled.
-- Productivity
-  - Save offers and saved searches (server-backed, requires `X-Client-Id` header set by the frontend). 
-  - Compare up to 3 offers side-by-side. 
-  - Export / share saved offers.
-- Engineering
-  - Provider abstraction (mock and Amadeus implementations). 
-  - Optional Redis caching and Micrometer metrics with Spring Actuator. 
-  - Integration tests using Testcontainers and WireMock.
-
-Architecture overview
-
-Frontend (Vite / React / TypeScript) -> Backend API (Spring Boot) -> Provider (Amadeus)
-
-Backend -> DB (Postgres via Flyway)
-
-Backend -> Cache (optional Redis)
-
-Backend -> ML (internal baseline or external ML service client)
-
-Tech stack
-
-- Frontend: React, TypeScript, Vite, Tailwind CSS, react-router-dom, react-query, react-hook-form, zod, vitest.
-- Backend: Spring Boot (Java 17), Spring WebMVC/WebFlux, Spring Data JPA, Flyway, Spring Cache/Redis support, Micrometer, Actuator, Resilience4j.
-- Data: Postgres (recommended), H2 for lightweight dev.
-- Testing: JUnit 5, Spring Boot test starters, Testcontainers (Postgres), WireMock.
-- Tooling: Maven, Node/npm, Docker, PowerShell helper scripts for Windows developers.
-
-Local setup and run
-
-Prerequisites
-
-- Java 17
-- Maven
-- Node 18+ and npm
-- Docker (optional, required for full Postgres+Redis mode)
-
-Environment variables (descriptions only; do not commit secrets)
-
-- `AMADEUS_API_KEY`, `AMADEUS_API_SECRET`: Amadeus credentials used by the Amadeus provider.
-- `TRAVEL_PROVIDERS_FLIGHTS`: flight provider selection; set to `amadeus` to enable Amadeus provider.
-- `ML_ENABLED` or `ml.enabled`: enable ML calls. See `scripts/run-backend.ps1` for mappings.
-- `VITE_API_BASE_URL`: frontend API base. When unset in dev the Vite proxy forwards `/api` to `http://localhost:8080`.
-- Spring datasource vars: `SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME`, `SPRING_DATASOURCE_PASSWORD`.
-
-Recommended run modes
-
-Mode 1: Fast dev with H2 (no Docker)
-
-1. Backend (PowerShell):
-
-```powershell
-pwsh .\scripts\run-backend.ps1 -Db h2
+```
+Frontend (Vite / React / TypeScript)
+    └─> Backend API (Spring Boot)
+            ├─> Provider (Amadeus API or mock)
+            ├─> DB (Postgres via Flyway)
+            ├─> Cache (optional Redis)
+            └─> ML (baseline heuristic or external ML service)
 ```
 
-This builds and runs the Spring Boot jar against an in-memory H2 database. Backend listens on port 8080.
+## Tech stack
 
-2. Frontend:
+- **Frontend:** React, TypeScript, Vite, Tailwind CSS, react-router-dom, react-query, react-hook-form, zod, vitest
+- **Backend:** Spring Boot (Java 17), Spring WebMVC/WebFlux, Spring Data JPA, Flyway, Spring Cache/Redis, Micrometer, Actuator, Resilience4j
+- **Data:** Postgres (recommended), H2 for lightweight dev
+- **Testing:** JUnit 5, Testcontainers (Postgres), WireMock
+- **Tooling:** Maven, Node/npm, Docker, PowerShell helper scripts
+
+## Local setup
+
+See [dev/SETUP.md](dev/SETUP.md) for full local dev instructions including environment variables, Docker compose, and script usage.
+
+**Quick start (H2, no Docker):**
 
 ```bash
-cd frontend
-npm install
-npm run dev
+# Backend
+pwsh ./scripts/run-backend.ps1 -Db h2
+
+# Frontend (separate terminal)
+cd frontend && npm install && npm run dev
 ```
 
-Frontend dev server defaults to port 5173; Vite will proxy `/api` to `http://localhost:8080` when `VITE_API_BASE_URL` is not set.
+Backend: `http://localhost:8080` | Frontend: `http://localhost:5173`
 
-Mode 2: Full dev with Docker (Postgres + Redis)
+**Running with live Amadeus data:**
 
-1. Start Docker services:
+Set `AMADEUS_API_KEY`, `AMADEUS_API_SECRET`, and `TRAVEL_PROVIDERS_FLIGHTS=amadeus` before starting the backend. The demo banner in the UI disappears when the live provider is active.
+
+## Testing
 
 ```bash
-docker compose up -d
-```
-
-Docker compose maps Postgres container port 5432 to host 5433 by default.
-
-2. Backend (PowerShell):
-
-```powershell
-pwsh .\scripts\run-backend.ps1 -Db postgres
-```
-
-3. Frontend: same as Mode 1.
-
-Notes
-
-- `scripts/run-backend.ps1` looks for `.env.amadeus` and `.env.postgres` and maps common keys to Spring variables. It will attempt to start the Docker dev stack if Postgres is not reachable.
-- If `VITE_API_BASE_URL` is set to an absolute URL, the frontend uses that and bypasses the Vite proxy. Leave it unset for local dev convenience.
-
-How to use (user flow)
-
-1. Open the frontend, enter origin/destination and date window, choose one-way or round-trip and run a search.
-2. Browse paginated options. Each option shows price, segments, value score and flags.
-3. Click View Details for score breakdown and Buy/Wait reasoning.
-4. Save offers for later review. Compare up to 3 saved offers.
-
-Testing
-
-- Run backend unit and integration tests:
-
-```bash
+# Backend (requires Docker for Testcontainers)
 mvn test
-```
 
-Integration tests that use Testcontainers require Docker available.
+# Frontend
+cd frontend && npm test
 
-- Frontend tests:
-
-```bash
-cd frontend
-npm run test
-```
-
-API documentation (selected endpoints)
-
-- POST `/api/trips/search` — submit a search payload (origin, destination, date windows, travelers). Returns `TripSearchResponseDTO` including `options`.
-- GET `/api/trips/{searchId}/options` — pagination for a search. Query params `page`, `size`, `sortBy`, `sortDir`.
-- GET `/api/trips/recent` — list recent searches.
-- POST/GET/DELETE `/api/saved` — saved searches (requires `X-Client-Id` header).
-- POST/GET/DELETE `/api/saved/offers` — saved offers (requires `X-Client-Id` header).
-- POST `/api/feedback` — send UI feedback events (fire-and-forget).
-- Actuator: `/actuator/health`, `/actuator/metrics` when enabled by profile.
-
+# CI-equivalent (H2, mock providers, coverage check)
+mvn -B verify -Dspring.profiles.active=ci
 Roadmap (suggested, short)
 
 - Add richer ML explanations and per-feature weight breakdown for Value Score.
@@ -264,23 +187,33 @@ Unit and integration tests are executed with Maven. Integration tests use Testco
 mvn test
 ```
 
-CI
+## API endpoints
 
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/api/trips/search` | Submit a search (origin, destination, dates, travelers) |
+| `GET` | `/api/trips/{searchId}/options` | Paginated options (`page`, `size`, `sortBy`, `sortDir`) |
+| `GET` | `/api/trips/recent` | Recent searches |
+| `GET` | `/api/demo-status` | Returns `{ "demoMode": true }` when mock provider is active |
+| `POST/GET/DELETE` | `/api/saved` | Saved searches (requires `X-Client-Id` header) |
+| `POST/GET/DELETE` | `/api/saved/offers` | Saved offers (requires `X-Client-Id` header) |
+| `POST` | `/api/feedback` | UI feedback events (fire-and-forget) |
+| `GET` | `/actuator/health` | Health check |
 
-![CI](https://github.com/adriangarciao/Intelligent-Travel-Cost-Optimizer/actions/workflows/ci.yml/badge.svg)
+## Deployment (Railway)
 
-Notes
+A `railway.toml` is included at the repo root. Set these environment variables in Railway:
 
+| Variable | Description |
+|----------|-------------|
+| `SPRING_DATASOURCE_URL` | PostgreSQL JDBC URL (Railway injects this if you add a Postgres service) |
+| `SPRING_DATASOURCE_USERNAME` | DB username |
+| `SPRING_DATASOURCE_PASSWORD` | DB password |
+| `AMADEUS_API_KEY` / `AMADEUS_API_SECRET` | Optional — omit to use mock data |
+| `TRAVEL_PROVIDERS_FLIGHTS` | Set to `amadeus` for live data; omit for mock (default) |
 
-**Testing & Integration Setup**
+Railway injects `PORT` automatically — `server.port=${PORT:8080}` in `application.properties` picks it up.
 
-  - `POST /predict/best-date-window` → 200 JSON
-  - `POST /predict/option-recommendation` → 200 JSON
-  - Quick: `mvn test` (integration tests start Docker containers via Testcontainers)
-  - If you need unit-only runs: run specific tests with `-Dtest=...` or use test categories/naming conventions.
+## License
 
-Amadeus integration (optional)
-- To enable Amadeus Self-Service flight offers locally, set the following env vars (do NOT commit secrets):
-  - `AMADEUS_API_KEY` and `AMADEUS_API_SECRET`
-- Then set `amadeus.enabled=true` (e.g., export/set env var) and optionally `amadeus.base-url` (test API is default).
-- The code respects caching and a short timeout to avoid hitting Amadeus rate limits. Tests use WireMock and do not call the real Amadeus API.
+TBD
