@@ -7,7 +7,7 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.SecurityFilterChain;
 
 @Configuration
-@Profile("!dev-no-security")
+@Profile("!dev-no-security & !test-no-security")
 public class SecurityConfig {
 
     @Bean
