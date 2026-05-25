@@ -50,17 +50,15 @@ public class ApplicationHealthIndicator implements HealthIndicator {
             hb.withDetail("db", "not-configured");
         }
 
-        // Redis check
+        // Redis check — optional; unavailability does not mark the app DOWN
         if (redisConnectionFactory != null) {
             try (RedisConnection conn = redisConnectionFactory.getConnection()) {
                 String pong = conn.ping();
-                if ("PONG".equalsIgnoreCase(pong)) {
-                    hb.withDetail("redis", "PONG");
-                } else {
-                    hb.down().withDetail("redis", pong == null ? "no-pong" : pong);
-                }
+                hb.withDetail(
+                        "redis",
+                        "PONG".equalsIgnoreCase(pong) ? "up" : (pong == null ? "no-pong" : pong));
             } catch (Throwable t) {
-                hb.down().withDetail("redis", t.getMessage());
+                hb.withDetail("redis", "unavailable: " + t.getMessage());
             }
         } else {
             hb.withDetail("redis", "not-configured");
@@ -96,13 +94,15 @@ public class ApplicationHealthIndicator implements HealthIndicator {
                             lastMsg = t.getMessage();
                         }
                     }
-                    if (ok) {
-                        hb.withDetail("ml", "reachable");
-                    } else {
-                        hb.down().withDetail("ml", lastMsg == null ? "unreachable" : lastMsg);
-                    }
+                    // ML service is optional; unreachability does not mark the app DOWN
+                    hb.withDetail(
+                            "ml",
+                            ok
+                                    ? "reachable"
+                                    : ("unavailable: "
+                                            + (lastMsg == null ? "unreachable" : lastMsg)));
                 } catch (Throwable t) {
-                    hb.down().withDetail("ml", t.getMessage());
+                    hb.withDetail("ml", "unavailable: " + t.getMessage());
                 }
             }
         } else {
