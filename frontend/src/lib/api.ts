@@ -2,7 +2,10 @@
 // base so the Vite dev server proxy forwards `/api` requests to the backend and
 // avoid CORS issues. In production the env var or absolute backend URL will be used.
 const rawBase = (import.meta.env as any).VITE_API_BASE_URL as string | undefined
-const BASE = rawBase ?? (import.meta.env.DEV ? '' : 'http://localhost:8080')
+if (!rawBase && !import.meta.env.DEV) {
+  console.error('VITE_API_BASE_URL is not set. API calls will fail in production.')
+}
+const BASE = rawBase ?? (import.meta.env.DEV ? '' : '')
 console.log('API BASE at runtime:', BASE)
 import { v4 as uuidv4 } from 'uuid'
 const CLIENT_ID_KEY = 'traveloptimizer.clientId'

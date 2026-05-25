@@ -18,9 +18,10 @@ type FormValues = z.infer<typeof Schema>
 
 type Props = {
   onSearch: (payload: FormValues & { tripType: 'ONE_WAY' | 'ROUND_TRIP' }) => void
+  isLoading?: boolean
 }
 
-export default function SearchForm({ onSearch }: Props) {
+export default function SearchForm({ onSearch, isLoading = false }: Props) {
   const [tripType, setTripType] = useState<'ONE_WAY' | 'ROUND_TRIP'>('ROUND_TRIP')
 
   const { register, handleSubmit, formState: { errors } } = useForm<FormValues>({
@@ -165,10 +166,11 @@ export default function SearchForm({ onSearch }: Props) {
       {/* Submit Button */}
       <button
         type="submit"
-        className="w-full btn py-3 text-base font-semibold"
+        disabled={isLoading}
+        className="w-full btn py-3 text-base font-semibold disabled:opacity-60"
         style={{ background: 'var(--dusk-blue)' }}
       >
-        Search Flights
+        {isLoading ? 'Searching…' : 'Search Flights'}
       </button>
     </form>
   )

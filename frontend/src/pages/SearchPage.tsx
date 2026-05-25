@@ -47,6 +47,9 @@ export default function SearchPage() {
         createdAt: new Date().toISOString()
       })
       navigate(`/results/${searchId}`)
+    },
+    onError(error) {
+      console.error('Search failed:', error)
     }
   })
 
@@ -78,7 +81,12 @@ export default function SearchPage() {
             {/* Search Form Card - Centered and Wider */}
             <div id="search-form" className="max-w-xl mx-auto fade-in">
               <div className="card p-6 md:p-8" style={{background:'rgba(255,255,255,0.98)'}}>
-                <SearchForm onSearch={handleSearch} />
+                <SearchForm onSearch={handleSearch} isLoading={mutation.isPending} />
+                {mutation.isError && (
+                  <p className="mt-3 text-sm text-red-600">
+                    Search failed: {(mutation.error as Error)?.message ?? 'Unknown error'}
+                  </p>
+                )}
               </div>
             </div>
           </div>
