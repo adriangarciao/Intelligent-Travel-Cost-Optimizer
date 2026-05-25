@@ -6,12 +6,16 @@ import { z } from 'zod'
 const Schema = z.object({
   origin: z.string().min(2, 'Required'),
   destination: z.string().min(2, 'Required'),
-  earliestDepartureDate: z.string().optional(),
-  latestDepartureDate: z.string().optional(),
+  earliestDepartureDate: z.string().min(1, 'Required'),
+  latestDepartureDate: z.string().min(1, 'Required'),
   earliestReturnDate: z.string().optional(),
   latestReturnDate: z.string().optional(),
-  maxBudget: z.number().optional(),
-  numTravelers: z.number().min(1)
+  // valueAsNumber gives NaN for empty inputs; treat NaN as absent
+  maxBudget: z.preprocess(
+    val => (typeof val === 'number' && isNaN(val) ? undefined : val),
+    z.number().min(0, 'Must be ≥ 0').optional()
+  ),
+  numTravelers: z.number({ invalid_type_error: 'Required' }).min(1, 'At least 1')
 })
 
 type FormValues = z.infer<typeof Schema>
@@ -30,10 +34,10 @@ export default function SearchForm({ onSearch, isLoading = false }: Props) {
   })
 
   const onSubmit = (data: FormValues) => {
-    // Clear return dates if one-way
     const payload = {
       ...data,
       tripType,
+      maxBudget: data.maxBudget ?? 100000,
       earliestReturnDate: tripType === 'ONE_WAY' ? undefined : data.earliestReturnDate,
       latestReturnDate: tripType === 'ONE_WAY' ? undefined : data.latestReturnDate
     }
@@ -99,16 +103,18 @@ export default function SearchForm({ onSearch, isLoading = false }: Props) {
             <input
               type="date"
               {...register('earliestDepartureDate')}
-              className="w-full"
+              className={`w-full ${errors.earliestDepartureDate ? 'border-red-400' : ''}`}
             />
+            {errors.earliestDepartureDate && <span className="text-xs text-red-500 mt-1">{errors.earliestDepartureDate.message}</span>}
           </div>
           <div>
             <span className="block text-xs text-gray-500 mb-1">Latest</span>
             <input
               type="date"
               {...register('latestDepartureDate')}
-              className="w-full"
+              className={`w-full ${errors.latestDepartureDate ? 'border-red-400' : ''}`}
             />
+            {errors.latestDepartureDate && <span className="text-xs text-red-500 mt-1">{errors.latestDepartureDate.message}</span>}
           </div>
         </div>
       </div>
@@ -148,8 +154,9 @@ export default function SearchForm({ onSearch, isLoading = false }: Props) {
               type="number"
               {...register('maxBudget', { valueAsNumber: true })}
               placeholder="Optional"
-              className="w-full pl-7"
+              className={`w-full pl-7 ${errors.maxBudget ? 'border-red-400' : ''}`}
             />
+            {errors.maxBudget && <span className="text-xs text-red-500 mt-1">{errors.maxBudget.message}</span>}
           </div>
         </div>
         <div>
