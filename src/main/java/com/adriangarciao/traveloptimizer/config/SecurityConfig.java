@@ -16,7 +16,7 @@ public class SecurityConfig {
         http.cors(Customizer.withDefaults())
                 .authorizeHttpRequests(
                         auth ->
-                                auth.requestMatchers("/actuator/health")
+                                auth.requestMatchers("/actuator/health", "/api/**")
                                         .permitAll()
                                         .anyRequest()
                                         .authenticated())
