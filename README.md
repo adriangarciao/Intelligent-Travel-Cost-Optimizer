@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/adriangarciao/Intelligent-Travel-Cost-Optimizer/actions/workflows/ci.yml/badge.svg)](https://github.com/adriangarciao/Intelligent-Travel-Cost-Optimizer/actions/workflows/ci.yml)
 
-**Live Demo:** [https://YOUR_RAILWAY_URL](https://YOUR_RAILWAY_URL) _(replace with your Railway deployment URL)_
+**Live Demo:** https://intelligent-travel-cost-optimizer.vercel.app/
 
 The following screenshots walk through the main flows:
 
