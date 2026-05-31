@@ -22,7 +22,8 @@ public class DevSecurityConfig {
     @Order(Ordered.HIGHEST_PRECEDENCE)
     public SecurityFilterChain permitAllSecurityFilterChain(HttpSecurity http) throws Exception {
         log.info("Activating dev-no-security SecurityFilterChain: permitting all requests");
-        http.authorizeHttpRequests(authorize -> authorize.anyRequest().permitAll())
+        http.cors(Customizer.withDefaults())
+                .authorizeHttpRequests(authorize -> authorize.anyRequest().permitAll())
                 .csrf(csrf -> csrf.disable())
                 .httpBasic(Customizer.withDefaults())
                 .formLogin(Customizer.withDefaults())
