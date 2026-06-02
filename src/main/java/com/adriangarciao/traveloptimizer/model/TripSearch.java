@@ -67,8 +67,9 @@ public class TripSearch {
     @Column(name = "max_budget", precision = 19, scale = 2)
     private BigDecimal maxBudget;
 
-    @Column(name = "num_travelers")
-    private int numTravelers;
+    @Column(name = "num_travelers", columnDefinition = "int default 1")
+    @Builder.Default
+    private int numTravelers = 1;
 
     @Column(name = "created_at")
     private Instant createdAt;
@@ -77,7 +78,7 @@ public class TripSearch {
      * Tracks how many flight offers have been fetched from the provider so far. Used for
      * progressive pagination - when more results are needed, we fetch with a higher limit.
      */
-    @Column(name = "flight_fetch_limit")
+    @Column(name = "flight_fetch_limit", columnDefinition = "int default 0")
     @Builder.Default
     private int flightFetchLimit = 0;
 
@@ -85,7 +86,7 @@ public class TripSearch {
      * True if the provider has been exhausted (no more unique offers available). Set when a fetch
      * returns fewer new offers than expected or returns duplicates only.
      */
-    @Column(name = "flight_exhausted")
+    @Column(name = "flight_exhausted", columnDefinition = "boolean default false")
     @Builder.Default
     private boolean flightExhausted = false;
 

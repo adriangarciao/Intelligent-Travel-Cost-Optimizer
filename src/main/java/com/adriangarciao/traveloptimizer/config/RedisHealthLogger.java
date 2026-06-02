@@ -26,12 +26,12 @@ public class RedisHealthLogger {
         try (var conn = redisConnectionFactory.getConnection()) {
             Object pong = conn.ping();
             if (pong == null) {
-                log.warn("Redis health check: PING returned null — Redis may be unavailable.");
+                log.debug("Redis health check: PING returned null — in-memory fallback active.");
             } else {
                 log.info("Redis health check successful: {}", pong.toString());
             }
         } catch (Throwable t) {
-            log.warn("Redis health check failed: {}", t.toString());
+            log.debug("Redis unavailable, using in-memory fallback: {}", t.toString());
         }
     }
 }

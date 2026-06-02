@@ -23,8 +23,8 @@ export default function CompareBar() {
         <div className="text-xs text-red-600">Maximum reached (3). Remove one to add another.</div>
       )}
       <div className="flex gap-2">
-        <button className="px-3 py-1 bg-blue-600 text-white rounded" onClick={() => navigate('/compare')}>Compare now</button>
-        <button className="px-3 py-1 border rounded" onClick={() => clear()}>Clear</button>
+        <button className="btn" onClick={() => navigate('/compare')}>Compare now</button>
+        <button className="btn" onClick={() => clear()}>Clear</button>
       </div>
       {msg && <div className="text-xs text-red-600 ml-2">{msg}</div>}
     </div>

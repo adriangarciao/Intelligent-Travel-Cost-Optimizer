@@ -36,3 +36,30 @@ build/
 .env
 .env.postgres
 .env.amadeus
+
+# Claude Code user-specific local settings (not for shared repos)
+.claude/settings.local.json
+
+# Runtime log and error files
+*.log
+*.err
+logs/
+
+# Debug / manual test data dumps (API snapshots from development)
+# These names are not used by any tracked test fixtures, so bare-name patterns are safe
+health.json
+options.json
+latest_options.json
+request.json
+response.json
+
+# Python bytecode
+__pycache__/
+*.pyc
+*.pyo
+
+# node_modules (covers nested script directories like scripts/db-check/)
+node_modules/
+
+# Database migration backup files
+*.sql.bak

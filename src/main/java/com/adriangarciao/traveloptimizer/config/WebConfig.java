@@ -38,7 +38,7 @@ public class WebConfig implements WebMvcConfigurer {
         return source;
     }
 
-    /** Spring MVC CORS — covers requests that reach DispatcherServlet directly. */
+    /** Spring MVC CORS — covers any request that reaches DispatcherServlet directly. */
     @Override
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/api/**")

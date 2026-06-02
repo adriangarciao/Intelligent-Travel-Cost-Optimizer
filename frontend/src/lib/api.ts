@@ -1,4 +1,11 @@
-const BASE = (import.meta.env.VITE_API_BASE_URL as string) || 'http://localhost:8080'
+// Prefer an explicit VITE_API_BASE_URL when provided. During local dev use a relative
+// base so the Vite dev server proxy forwards `/api` requests to the backend and
+// avoid CORS issues. In production the env var or absolute backend URL will be used.
+const rawBase = (import.meta.env as any).VITE_API_BASE_URL as string | undefined
+if (!rawBase && !import.meta.env.DEV) {
+  console.error('VITE_API_BASE_URL is not set. API calls will fail in production.')
+}
+const BASE = rawBase ?? (import.meta.env.DEV ? '' : '')
 console.log('API BASE at runtime:', BASE)
 import { v4 as uuidv4 } from 'uuid'
 const CLIENT_ID_KEY = 'traveloptimizer.clientId'
@@ -226,6 +233,16 @@ export async function sendFeedback(payload: FeedbackEventPayload): Promise<void>
     // Fire-and-forget: don't block on response or throw on error
   } catch (e) {
     console.warn('Feedback send failed (non-critical):', e)
+  }
+}
+
+export async function getDemoStatus(): Promise<{ demoMode: boolean }> {
+  try {
+    const res = await fetch(`${BASE}/api/demo-status`)
+    if (!res.ok) return { demoMode: false }
+    return (await res.json()) as { demoMode: boolean }
+  } catch {
+    return { demoMode: false }
   }
 }
 
