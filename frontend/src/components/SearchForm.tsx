@@ -25,10 +25,51 @@ type Props = {
   isLoading?: boolean
 }
 
+const PRESETS = [
+  {
+    tripType: 'ROUND_TRIP' as const,
+    origin: 'ORD',
+    destination: 'MIA',
+    departureOffset: [14, 16] as [number, number],
+    returnOffset: [21, 23] as [number, number]
+  },
+  {
+    tripType: 'ROUND_TRIP' as const,
+    origin: 'JFK',
+    destination: 'LAX',
+    departureOffset: [7, 9] as [number, number],
+    returnOffset: [12, 14] as [number, number]
+  },
+  {
+    tripType: 'ONE_WAY' as const,
+    origin: 'ORD',
+    destination: 'DEN',
+    departureOffset: [5, 8] as [number, number],
+    returnOffset: null,
+    maxBudget: 250,
+    numTravelers: 1
+  }
+] satisfies Array<{
+  tripType: 'ONE_WAY' | 'ROUND_TRIP'
+  origin: string
+  destination: string
+  departureOffset: [number, number]
+  returnOffset: [number, number] | null
+  maxBudget?: number
+  numTravelers?: number
+}>
+
+function offsetDate(days: number): string {
+  const d = new Date()
+  d.setDate(d.getDate() + days)
+  return d.toISOString().slice(0, 10)
+}
+
 export default function SearchForm({ onSearch, isLoading = false }: Props) {
   const [tripType, setTripType] = useState<'ONE_WAY' | 'ROUND_TRIP'>('ROUND_TRIP')
+  const [demoIndex, setDemoIndex] = useState(0)
 
-  const { register, handleSubmit, formState: { errors } } = useForm<FormValues>({
+  const { register, handleSubmit, setValue, formState: { errors } } = useForm<FormValues>({
     resolver: zodResolver(Schema),
     defaultValues: { numTravelers: 1 }
   })
@@ -43,6 +84,27 @@ export default function SearchForm({ onSearch, isLoading = false }: Props) {
     }
     onSearch(payload)
   }
+
+  function handleDemo() {
+    const preset = PRESETS[demoIndex]
+    setTripType(preset.tripType)
+    setValue('origin', preset.origin)
+    setValue('destination', preset.destination)
+    setValue('earliestDepartureDate', offsetDate(preset.departureOffset[0]))
+    setValue('latestDepartureDate', offsetDate(preset.departureOffset[1]))
+    if (preset.tripType === 'ROUND_TRIP' && preset.returnOffset) {
+      setValue('earliestReturnDate', offsetDate(preset.returnOffset[0]))
+      setValue('latestReturnDate', offsetDate(preset.returnOffset[1]))
+    } else {
+      setValue('earliestReturnDate', '')
+      setValue('latestReturnDate', '')
+    }
+    if (preset.maxBudget !== undefined) setValue('maxBudget', preset.maxBudget)
+    if (preset.numTravelers !== undefined) setValue('numTravelers', preset.numTravelers)
+    setDemoIndex((demoIndex + 1) % PRESETS.length)
+  }
+
+  const nextDemoNum = demoIndex + 1
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
@@ -170,7 +232,7 @@ export default function SearchForm({ onSearch, isLoading = false }: Props) {
         </div>
       </div>
 
-      {/* Submit Button */}
+      {/* Submit & Demo */}
       <button
         type="submit"
         disabled={isLoading}
@@ -178,6 +240,13 @@ export default function SearchForm({ onSearch, isLoading = false }: Props) {
         style={{ background: 'var(--dusk-blue)' }}
       >
         {isLoading ? 'Searching…' : 'Search Flights'}
+      </button>
+      <button
+        type="button"
+        onClick={handleDemo}
+        className="w-full border border-gray-200 text-gray-500 py-2 rounded-lg text-sm hover:border-[var(--dusk-blue)] hover:text-[var(--dusk-blue)] transition-colors"
+      >
+        ✦ Try Demo ({nextDemoNum}/3)
       </button>
     </form>
   )
