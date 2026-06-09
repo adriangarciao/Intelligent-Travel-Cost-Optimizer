@@ -6,6 +6,3 @@ ALTER TABLE IF EXISTS saved_offer
 CREATE TABLE IF NOT EXISTS saved_offer (
   id uuid PRIMARY KEY
 );
-
--- Index for client_id if not exists
-CREATE INDEX IF NOT EXISTS idx_saved_offer_client_created ON saved_offer (client_id, created_at DESC);
