@@ -133,7 +133,8 @@ public class PriceHistoryServiceImpl implements PriceHistoryService {
     }
 
     @Override
-    @Transactional
+    @Transactional(
+            propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
     public void recordObservation(
             String origin, String destination, LocalDate departureDate, double price) {
         if (repository == null) {
