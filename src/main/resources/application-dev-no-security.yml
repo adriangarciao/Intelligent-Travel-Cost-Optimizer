@@ -5,18 +5,18 @@ spring:
       - org.springframework.boot.autoconfigure.security.servlet.UserDetailsServiceAutoConfiguration
       - org.springframework.boot.actuate.autoconfigure.security.servlet.ManagementWebSecurityAutoConfiguration
   datasource:
-    # Do not hardcode H2 here; allow environment or command-line to provide the JDBC URL and driver.
-    # Defaulting to an empty driver-class-name lets Spring auto-detect the correct driver from the URL.
-    url: ${SPRING_DATASOURCE_URL:}
-    driver-class-name: ${SPRING_DATASOURCE_DRIVER:}
+    url: ${SPRING_DATASOURCE_URL:jdbc:h2:mem:traveloptimizer;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE}
+    driver-class-name: ${SPRING_DATASOURCE_DRIVER:org.h2.Driver}
     username: ${SPRING_DATASOURCE_USERNAME:sa}
     password: ${SPRING_DATASOURCE_PASSWORD:}
+  flyway:
+    enabled: false
   jpa:
     hibernate:
       ddl-auto: update
+    database-platform: org.hibernate.dialect.H2Dialect
   cache:
     type: none
-    # Let Hibernate auto-detect the dialect from the JDBC metadata when using a real DB.
 ml:
   enabled: false
 amadeus:
