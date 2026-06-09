@@ -174,6 +174,7 @@ public class TripSearchServiceImpl implements TripSearchService {
     }
 
     @Override
+    @org.springframework.transaction.annotation.Transactional
     @org.springframework.cache.annotation.Cacheable(
             value = "tripSearchCache",
             keyGenerator = "tripSearchKeyGenerator",
@@ -701,6 +702,7 @@ public class TripSearchServiceImpl implements TripSearchService {
     }
 
     @Override
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
     public com.adriangarciao.traveloptimizer.dto.TripOptionsPageDTO getOptions(
             java.util.UUID searchId, int page, int size, String sortBy, String sortDir) {
         String requestId = MDC.get("requestId");
