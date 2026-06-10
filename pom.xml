@@ -88,9 +88,12 @@
 		</dependency>
 
 		<!-- Flyway for DB migrations -->
+		<!-- Spring Boot 4.0 modularized autoconfiguration: Flyway is no longer
+		     auto-configured from flyway-core alone, so use the starter to pull in
+		     the Flyway autoconfiguration module (version managed by the BOM). -->
 		<dependency>
-			<groupId>org.flywaydb</groupId>
-			<artifactId>flyway-core</artifactId>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-flyway</artifactId>
 		</dependency>
 		<dependency>
 			<groupId>org.flywaydb</groupId>
