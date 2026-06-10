@@ -12,6 +12,12 @@ spring:
     driver-class-name: org.h2.Driver
     username: sa
     password:
+  flyway:
+    # Flyway migrations are PostgreSQL-specific (uuid, interval, timestamptz) and
+    # target the real production DB. CI runs against H2 with the schema generated
+    # by Hibernate (ddl-auto below), so Flyway must be disabled here — matching the
+    # dev-no-security profile.
+    enabled: false
   jpa:
     hibernate:
       ddl-auto: create-drop
