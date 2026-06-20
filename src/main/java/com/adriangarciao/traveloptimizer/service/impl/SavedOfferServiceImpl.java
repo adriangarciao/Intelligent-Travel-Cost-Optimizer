@@ -4,7 +4,6 @@ import com.adriangarciao.traveloptimizer.dto.SavedOfferDTO;
 import com.adriangarciao.traveloptimizer.model.SavedOffer;
 import com.adriangarciao.traveloptimizer.repository.SavedOfferRepository;
 import com.adriangarciao.traveloptimizer.service.SavedOfferService;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.List;
 import java.util.UUID;
@@ -28,9 +27,14 @@ public class SavedOfferServiceImpl implements SavedOfferService {
             var existing = repo.findByTripOptionIdAndClientId(payload.getTripOptionId(), clientId);
             if (existing.isPresent()) {
                 var e = existing.get();
-                JsonNode optionNode = null;
+                // Deserialize into plain Java types (Map/List), not a Jackson JsonNode:
+                // Spring Boot 4.0 serializes HTTP responses with Jackson 3, which does not
+                // recognize a Jackson 2 JsonNode and would emit its bean getters instead of
+                // the JSON payload. Maps/Lists serialize identically under any Jackson version.
+                Object optionNode = null;
                 try {
-                    if (e.getOptionJson() != null) optionNode = mapper.readTree(e.getOptionJson());
+                    if (e.getOptionJson() != null)
+                        optionNode = mapper.readValue(e.getOptionJson(), Object.class);
                 } catch (Exception ignored) {
                 }
                 return SavedOfferDTO.builder()
@@ -94,10 +98,10 @@ public class SavedOfferServiceImpl implements SavedOfferService {
         return repo.findByClientIdOrderByCreatedAtDesc(clientId).stream()
                 .map(
                         e -> {
-                            JsonNode optionNode = null;
+                            Object optionNode = null;
                             try {
                                 if (e.getOptionJson() != null)
-                                    optionNode = mapper.readTree(e.getOptionJson());
+                                    optionNode = mapper.readValue(e.getOptionJson(), Object.class);
                             } catch (Exception ignored) {
                             }
                             return SavedOfferDTO.builder()
