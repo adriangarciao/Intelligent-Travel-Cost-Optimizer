@@ -1,0 +1,12 @@
+-- V12: Add the option_json column to saved_offer.
+--
+-- V3 intended to add this column, but its ALTER TABLE ran *before* its own
+-- defensive CREATE TABLE. On databases where saved_offer did not yet exist when
+-- V3 ran, the `ALTER TABLE IF EXISTS` silently no-opped and the table was then
+-- created with only `id`. V10's backfill added every other column but omitted
+-- option_json, so production saved_offer permanently lacked it. The entity maps
+-- option_json, so Hibernate's generated SELECT/INSERT fails with
+-- "column option_json does not exist" (SQLState 42703) on every save.
+--
+-- Idempotent: safe to apply whether or not the column already exists.
+ALTER TABLE saved_offer ADD COLUMN IF NOT EXISTS option_json TEXT;
