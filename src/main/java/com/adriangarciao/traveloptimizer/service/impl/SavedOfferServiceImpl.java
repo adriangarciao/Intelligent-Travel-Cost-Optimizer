@@ -1,26 +1,35 @@
 package com.adriangarciao.traveloptimizer.service.impl;
 
 import com.adriangarciao.traveloptimizer.dto.SavedOfferDTO;
+import com.adriangarciao.traveloptimizer.model.FlightOption;
 import com.adriangarciao.traveloptimizer.model.SavedOffer;
+import com.adriangarciao.traveloptimizer.model.TripOption;
+import com.adriangarciao.traveloptimizer.model.TripSearch;
 import com.adriangarciao.traveloptimizer.repository.SavedOfferRepository;
+import com.adriangarciao.traveloptimizer.repository.TripOptionRepository;
 import com.adriangarciao.traveloptimizer.service.SavedOfferService;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.time.Duration;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class SavedOfferServiceImpl implements SavedOfferService {
 
     private final SavedOfferRepository repo;
+    private final TripOptionRepository tripOptionRepo;
     private final ObjectMapper mapper = new ObjectMapper();
 
-    public SavedOfferServiceImpl(SavedOfferRepository repo) {
+    public SavedOfferServiceImpl(SavedOfferRepository repo, TripOptionRepository tripOptionRepo) {
         this.repo = repo;
+        this.tripOptionRepo = tripOptionRepo;
     }
 
     @Override
+    @Transactional
     public SavedOfferDTO save(String clientId, SavedOfferDTO payload) {
         // idempotent: if tripOptionId already saved for client, return existing
         if (payload.getTripOptionId() != null) {
@@ -58,6 +67,11 @@ public class SavedOfferServiceImpl implements SavedOfferService {
                         .build();
             }
         }
+
+        // Backfill display metadata from the persisted TripOption/TripSearch. The options API
+        // does not expose origin/destination/dates at the option's top level, so the client
+        // payload arrives with those null. Fill any blank field from the authoritative entities.
+        backfillFromTripOption(payload);
 
         SavedOffer ent =
                 SavedOffer.builder()
@@ -125,6 +139,54 @@ public class SavedOfferServiceImpl implements SavedOfferService {
                                     .build();
                         })
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * Fills blank origin/destination/date/airline fields on the payload from the persisted
+     * TripOption (and its TripSearch / FlightOption). Non-blank values supplied by the client are
+     * preserved. No-op if the trip option can't be found (e.g. demo data already evicted).
+     */
+    private void backfillFromTripOption(SavedOfferDTO payload) {
+        if (payload.getTripOptionId() == null) return;
+        tripOptionRepo
+                .findById(payload.getTripOptionId())
+                .ifPresent(
+                        (TripOption to) -> {
+                            TripSearch s = to.getTripSearch();
+                            if (s != null) {
+                                if (isBlank(payload.getOrigin())) payload.setOrigin(s.getOrigin());
+                                if (isBlank(payload.getDestination()))
+                                    payload.setDestination(s.getDestination());
+                            }
+                            FlightOption f = to.getFlightOption();
+                            if (f != null) {
+                                if (isBlank(payload.getDepartDate())
+                                        && f.getDepartureDate() != null)
+                                    payload.setDepartDate(f.getDepartureDate().toString());
+                                if (isBlank(payload.getReturnDate()) && f.getReturnDate() != null)
+                                    payload.setReturnDate(f.getReturnDate().toString());
+                                if (isBlank(payload.getAirlineCode()))
+                                    payload.setAirlineCode(f.getAirlineCode());
+                                if (isBlank(payload.getAirlineName()))
+                                    payload.setAirlineName(f.getAirlineName());
+                                if (isBlank(payload.getFlightNumber()))
+                                    payload.setFlightNumber(f.getFlightNumber());
+                                if (isBlank(payload.getDurationText()) && f.getDuration() != null)
+                                    payload.setDurationText(formatDuration(f.getDuration()));
+                            }
+                        });
+    }
+
+    private static boolean isBlank(String s) {
+        return s == null || s.isBlank();
+    }
+
+    /** Formats a duration as "Xh Ym" (or "Ym" when under an hour), matching TripOptionMapper. */
+    private static String formatDuration(Duration duration) {
+        long mins = duration.toMinutes();
+        long hrs = mins / 60;
+        long rem = mins % 60;
+        return hrs > 0 ? String.format("%dh %dm", hrs, rem) : String.format("%dm", rem);
     }
 
     @Override
