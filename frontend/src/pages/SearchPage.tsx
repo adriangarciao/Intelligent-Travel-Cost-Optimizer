@@ -54,7 +54,6 @@ export default function SearchPage() {
   })
 
   const handleSearch = (payload: any) => {
-    console.log('SearchPage handleSearch payload:', payload)
     mutation.mutate(payload)
   }
 

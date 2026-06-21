@@ -6,7 +6,6 @@ if (!rawBase && !import.meta.env.DEV) {
   console.error('VITE_API_BASE_URL is not set. API calls will fail in production.')
 }
 const BASE = rawBase ?? (import.meta.env.DEV ? '' : '')
-console.log('API BASE at runtime:', BASE)
 import { v4 as uuidv4 } from 'uuid'
 const CLIENT_ID_KEY = 'traveloptimizer.clientId'
 export function getClientId() {
@@ -34,7 +33,6 @@ type TripSearchPayload = {
 // use types in src/lib/types.ts
 
 export async function searchTrips(payload: TripSearchPayload) {
-  console.log('searchTrips payload:', payload)
   const res = await fetch(`${BASE}/api/trips/search`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -62,22 +60,13 @@ export async function getTripOptions(
   const res = await fetch(`${BASE}/api/trips/${encodeURIComponent(searchId)}/options?${params.toString()}`)
   if (!res.ok) throw new Error(await res.text())
   const body = await res.json() as TripOptionsPageDTO
-  // TEMP DEBUG: log top-level keys and first option to help frontend parsing issues
-  try {
-    // eslint-disable-next-line no-console
-    console.log('getTripOptions: server response keys=', Object.keys(body))
-    // eslint-disable-next-line no-console
-    console.log('getTripOptions: first option=', (body as any).options && (body as any).options[0])
-  } catch (e) {
-    // ignore
-  }
   // Transform server response { options, totalOptions, ... } -> UI expected { content, totalElements }
   const transformed = {
     ...body,
     content: (body.options || []).map((o: any) => ({
       // normalize ids
-      id: o.tripOptionId || o.tripOptionId,
-      optionId: o.tripOptionId || o.tripOptionId,
+      id: o.tripOptionId,
+      optionId: o.tripOptionId,
       // pricing
       totalPrice: o.totalPrice,
       price: o.totalPrice,

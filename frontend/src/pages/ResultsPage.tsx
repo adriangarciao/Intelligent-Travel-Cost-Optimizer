@@ -3,10 +3,50 @@ import { useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { getTripOptions } from '../lib/api'
 import TripCard from '../components/TripCard'
+import SuggestedFilters from '../components/SuggestedFilters'
+import DiagnosticsPanel, { useDiagnosticsFromResponse } from '../components/DiagnosticsPanel'
 import useSavedItems from '../hooks/useSavedItems'
 import { computeDealScores, getOptionId } from '../utils/dealScore'
 import { useMemo } from 'react'
 import type { SearchCriteriaDTO } from '../types/api'
+
+/** Client-side filters that the smart-filter suggestions can apply. */
+type ActiveFilters = {
+  nonStopOnly?: boolean
+  maxLayovers?: number
+  avoidAirlines?: string[]
+  preferAirlines?: string[]
+}
+
+/** Apply the active smart filters to the current page of options. */
+function applyFilters(options: any[], filters: ActiveFilters): any[] {
+  return options.filter((opt) => {
+    const flight = opt.flight ?? opt.flightSummary ?? {}
+    const stops: number | undefined = typeof flight.stops === 'number' ? flight.stops : undefined
+    const airline: string | undefined = flight.airlineCode
+    if (filters.nonStopOnly && stops !== 0) return false
+    if (typeof filters.maxLayovers === 'number' && (stops == null || stops > filters.maxLayovers)) return false
+    if (filters.avoidAirlines?.length && airline && filters.avoidAirlines.includes(airline)) return false
+    if (filters.preferAirlines?.length && (!airline || !filters.preferAirlines.includes(airline))) return false
+    return true
+  })
+}
+
+/** Human-readable label for an active filter chip. */
+function filterChipLabel(key: keyof ActiveFilters, value: any): string {
+  switch (key) {
+    case 'nonStopOnly':
+      return 'Nonstop only'
+    case 'maxLayovers':
+      return `Max ${value} layover${value === 1 ? '' : 's'}`
+    case 'avoidAirlines':
+      return `Avoiding ${Array.isArray(value) ? value.join(', ') : value}`
+    case 'preferAirlines':
+      return `Preferring ${Array.isArray(value) ? value.join(', ') : value}`
+    default:
+      return String(key)
+  }
+}
 
 // Component to display search criteria summary
 function SearchCriteriaSummary({ criteria }: { criteria: SearchCriteriaDTO | null | undefined }) {
@@ -84,6 +124,14 @@ export default function ResultsPage() {
   const [sortDir, setSortDir] = useState<'asc'|'desc'>('desc')
   const saved = useSavedItems()
 
+  // Smart-filter state: suggestions are personalized from the user's save/dismiss
+  // history. Applying one filters the current results client-side.
+  const [activeFilters, setActiveFilters] = useState<ActiveFilters>({})
+  const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set())
+  // Bumping this re-fetches suggestions after the user saves or dismisses.
+  const [suggestionsRefresh, setSuggestionsRefresh] = useState(0)
+  const bumpSuggestions = () => setSuggestionsRefresh((n) => n + 1)
+
   const { data, isLoading, error } = useQuery({
     queryKey: ['tripOptions', searchId, page, size, sortBy, sortDir],
     queryFn: () => getTripOptions(searchId as string, page, size, sortBy, sortDir),
@@ -109,9 +157,6 @@ export default function ResultsPage() {
   // Get search criteria from response if available
   const criteria: SearchCriteriaDTO | undefined = (data as any)?.criteria
 
-  // Get observability data from response
-  const observability = (data as any)?.__observability
-
   // compute deal scores once per searchId
   // Note: useMemo must be called unconditionally (before any early returns) per React hooks rules
   const scoreMap = useMemo(() => computeDealScores(options), [searchId, JSON.stringify(options.map(o => ({ id: o.id ?? o.tripOptionId, price: o.totalPrice })) )])
@@ -126,20 +171,55 @@ export default function ResultsPage() {
     return { low, high }
   }, [JSON.stringify(options.map(o => ({ id: o.id ?? o.optionId ?? o.tripOptionId, price: o.totalPrice })) )])
 
-  // TEMP DEBUG: inspect the resolved data shape
-  if (typeof window !== 'undefined') {
-    // eslint-disable-next-line no-console
-    console.log('ResultsPage: resolved data=', data)
-  }
+  // Apply dismissed-card hiding and active smart filters to the current page.
+  const visibleOptions = useMemo(() => {
+    const notDismissed = options.filter((o: any) => !dismissedIds.has(String(o.id ?? o.optionId ?? o.tripOptionId)))
+    return applyFilters(notDismissed, activeFilters)
+  }, [options, dismissedIds, activeFilters])
+
+  const activeFilterEntries = Object.entries(activeFilters).filter(([, v]) => v != null && (!Array.isArray(v) || v.length > 0))
+
+  // Dev-only diagnostics (request id, offers count, actuator metrics). Renders null in production.
+  const diagnostics = useDiagnosticsFromResponse(data ? { ...data, searchId } : undefined)
 
   if (!searchId) return <div>Missing searchId</div>
 
   return (
     <div>
-      <div className="mb-2 text-sm text-gray-600">Debug: searchId={searchId} loading={String(isLoading)} error={error ? 'yes' : 'no'} options={options.length}</div>
-      
       {/* Search criteria summary */}
       <SearchCriteriaSummary criteria={criteria} />
+
+      {/* Personalized filter suggestions from the user's save/dismiss history */}
+      <SuggestedFilters
+        refreshTrigger={suggestionsRefresh}
+        className="mb-4"
+        onApplyFilter={(key, value) => setActiveFilters((prev) => ({ ...prev, [key]: value }))}
+      />
+
+      {activeFilterEntries.length > 0 && (
+        <div className="mb-4 flex flex-wrap items-center gap-2">
+          <span className="text-xs text-gray-500">Active filters:</span>
+          {activeFilterEntries.map(([key, value]) => (
+            <span key={key} className="inline-flex items-center gap-1.5 bg-blue-100 text-blue-800 text-xs px-2.5 py-1 rounded-full">
+              {filterChipLabel(key as keyof ActiveFilters, value)}
+              <button
+                className="text-blue-500 hover:text-blue-700"
+                title="Remove filter"
+                onClick={() => setActiveFilters((prev) => {
+                  const next = { ...prev }
+                  delete (next as any)[key]
+                  return next
+                })}
+              >
+                ✕
+              </button>
+            </span>
+          ))}
+          <button className="text-xs text-gray-500 underline" onClick={() => setActiveFilters({})}>
+            Clear all
+          </button>
+        </div>
+      )}
       <div className="flex items-center justify-between mb-4">
         <div>
           <h2 className="text-xl font-semibold">Results for {searchId}</h2>
@@ -171,12 +251,16 @@ export default function ResultsPage() {
           {error && <div className="text-red-600">Error loading results: {(error as any)?.message ?? 'Unknown'}</div>}
 
           <div className="space-y-4">
-            {options.length === 0 && !isLoading && (
+            {visibleOptions.length === 0 && !isLoading && (
               <div className="text-sm text-gray-500">
-                {page > 0 && !hasMore ? 'No further options available' : 'No options found'}
+                {options.length > 0
+                  ? 'No options match the active filters.'
+                  : page > 0 && !hasMore
+                    ? 'No further options available'
+                    : 'No options found'}
               </div>
             )}
-            {options.map((opt: any) => {
+            {visibleOptions.map((opt: any) => {
               const key = opt.id ?? opt.optionId ?? opt.tripOptionId ?? JSON.stringify(opt)
               const info = scoreMap.get(opt.id ?? opt.tripOptionId ?? opt.optionId ?? key)
               const priceTag = priceRank.low.has(opt.id ?? opt.optionId ?? opt.tripOptionId ?? key) ? 'low' : (priceRank.high.has(opt.id ?? opt.optionId ?? opt.tripOptionId ?? key) ? 'high' : undefined)
@@ -185,12 +269,12 @@ export default function ResultsPage() {
                   key={key}
                   searchId={searchId}
                   option={opt}
-                  onSave={(item) => saved.saveItem(item)}
+                  onSave={(item) => { saved.saveItem(item); bumpSuggestions() }}
+                  onDismiss={(id) => { setDismissedIds((prev) => new Set(prev).add(id)); bumpSuggestions() }}
                   dealScore={info?.score}
                   dealLabel={info?.label}
                   percentileText={info?.percentileText}
                   priceTag={priceTag}
-                  observability={observability}
                 />
               )
             })}
@@ -219,6 +303,9 @@ export default function ResultsPage() {
         </div>
         <div className="text-sm text-gray-500">Total: {totalElements ?? '—'}</div>
       </div>
+
+      {/* Dev-only floating diagnostics widget (hidden in production builds) */}
+      <DiagnosticsPanel data={diagnostics} />
     </div>
   )
 }

@@ -16,6 +16,7 @@ Travel Optimizer searches and compares flight offers, then ranks them with a tra
 
 ## Highlights
 
+- **Personalized smart filters:** The app learns from the offers you save and dismiss to suggest filters (nonstop only, max layovers, preferred or avoided airlines), each with a confidence score and a plain-language reason. Suggestions are computed server-side from your interaction history, keyed by an anonymous client ID.
 - **Redis caching:** Provider responses and search results are cached through Spring Cache backed by Redis, cutting repeat-query latency and external API load.
 - **Continuous integration:** Every push and pull request runs the full GitHub Actions pipeline. See the badge above for live status.
 - **Flyway migrations:** The Postgres schema is versioned and applied automatically through Flyway, so the database stays reproducible across environments.
@@ -33,9 +34,11 @@ Travel Optimizer searches and compares flight offers, then ranks them with a tra
 - Value score (0 to 1) ranks offers relative to others in the same search
 - Deal meter shows percentile position within the current search
 - Buy-or-wait recommendation from the ML client or a built-in baseline heuristic
+- Smart filter suggestions personalized from your save/dismiss history, applied to results client-side with active-filter chips
 
 **Productivity**
-- Save offers and searches (server-backed, keyed by the `X-Client-Id` header)
+- Save offers server-side, keyed by the `X-Client-Id` header; recent searches are served from the backend
+- Save searches locally in the browser for quick re-access
 - Compare up to 3 offers side by side
 - Export and share saved offers
 
@@ -112,7 +115,8 @@ mvn -B verify -Dspring.profiles.active=ci
 | `GET` | `/api/demo-status` | Returns `{ "demoMode": true }` when the mock provider is active |
 | `POST/GET/DELETE` | `/api/saved` | Saved searches (requires `X-Client-Id` header) |
 | `POST/GET/DELETE` | `/api/saved/offers` | Saved offers (requires `X-Client-Id` header) |
-| `POST` | `/api/feedback` | UI feedback events (fire and forget) |
+| `POST` | `/api/feedback` | UI feedback events — saves, dismisses, filter applies (fire and forget) |
+| `GET` | `/api/users/{userId}/smart-filters` | Personalized filter suggestions computed from feedback history |
 | `GET` | `/actuator/health` | Health check |
 
 ## Deployment

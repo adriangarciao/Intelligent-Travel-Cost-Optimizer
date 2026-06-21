@@ -77,7 +77,6 @@ export default function ComparePage() {
           if (Array.isArray(key) && key[0] === 'tripOptions' && key.includes(firstSearchId) && data) {
             const allOptions = (data as any).content || (data as any).options || []
             if (Array.isArray(allOptions) && allOptions.length > 0) {
-              console.log('ComparePage: computing deal percentiles relative to full search results for searchId=', firstSearchId)
               return computeDealScores(allOptions)
             }
           }
@@ -88,7 +87,6 @@ export default function ComparePage() {
     }
 
     // Fallback: compute percentiles among the items being compared
-    console.log('ComparePage: computing deal percentiles relative to the compare set (fallback)')
     return computeDealScores(items as any)
   }, [items, queryClient])
 

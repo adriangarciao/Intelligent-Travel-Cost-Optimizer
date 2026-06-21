@@ -5,7 +5,7 @@ import { triggerToast } from './Toast'
 import ShareExportModal from './ShareExportModal'
 import { SavedItem } from '../hooks/useSavedItems'
 import type { TripOptionDTO, FlightSummary, TripFlagDTO, FlagSeverity } from '../types/api'
-import { saveOffer } from '../lib/api'
+import { saveOffer, sendFeedback } from '../lib/api'
 
 /** Get styling classes for a flag based on severity */
 function getFlagStyles(severity: FlagSeverity): { bg: string; text: string; border: string } {
@@ -37,12 +37,14 @@ type Props = {
   searchId: string
   option: TripOptionDTO
   onSave?: (item: SavedItem) => void
+  /** Called when the user dismisses this option so the parent can hide it. */
+  onDismiss?: (optionId: string) => void
   isSaved?: boolean
 }
 
 export type TripCardProps = Props
 
-export default function TripCard({ searchId, option, onSave, isSaved, expandedOverride, dealScore, dealLabel, percentileText, priceTag }: Props & { expandedOverride?: boolean, dealScore?: number, dealLabel?: string, percentileText?: string, priceTag?: 'low'|'high'|undefined }) {
+export default function TripCard({ searchId, option, onSave, onDismiss, isSaved, expandedOverride, dealScore, dealLabel, percentileText, priceTag }: Props & { expandedOverride?: boolean, dealScore?: number, dealLabel?: string, percentileText?: string, priceTag?: 'low'|'high'|undefined }) {
   const optionId = option.id || JSON.stringify(option)
   const totalPrice = option.totalPrice ?? 0
   const currency = option.currency || 'USD'
@@ -97,6 +99,23 @@ export default function TripCard({ searchId, option, onSave, isSaved, expandedOv
     if (typeof expandedOverride === 'boolean') setExpanded(expandedOverride)
   }, [expandedOverride])
 
+  // Fields the smart-filter backend analyzes for SAVE/DISMISS events.
+  function feedbackFields() {
+    return {
+      tripOptionId: option.id,
+      searchId,
+      airlineCode: flight?.airlineCode ?? option.__raw?.flight?.airlineCode,
+      stops: typeof flight?.stops === 'number' ? flight.stops : undefined,
+      durationMinutes: typeof flight?.duration === 'number' ? flight.duration : undefined,
+      price: typeof totalPrice === 'number' ? totalPrice : undefined,
+    }
+  }
+
+  function handleDismiss() {
+    sendFeedback({ eventType: 'DISMISS', ...feedbackFields() })
+    if (onDismiss) onDismiss(String(optionId))
+  }
+
   async function handleSave() {
     // optimistic
     setSaving(true)
@@ -121,6 +140,8 @@ export default function TripCard({ searchId, option, onSave, isSaved, expandedOv
       const res = await saveOffer(payload)
       // server returns created id (string)
       setSavedId(String(res))
+      // Record the save so the smart-filter engine can learn preferences.
+      sendFeedback({ eventType: 'SAVE', ...feedbackFields() })
     } catch (e) {
       // undo optimistic
       // eslint-disable-next-line no-console
@@ -133,8 +154,6 @@ export default function TripCard({ searchId, option, onSave, isSaved, expandedOv
 
   return (
     <div className={`p-4 rounded card card-hoverable card-accent ${priceTag === 'low' ? 'low' : priceTag === 'high' ? 'high' : ''}`}>
-      {/* TEMP DEBUG: log exact option being rendered */}
-      {typeof window !== 'undefined' && (console.log && console.log('TripCard render option=', option))}
       <div className="flex justify-between items-start">
         <div>
           <div className="flex items-center gap-3">
@@ -232,6 +251,15 @@ export default function TripCard({ searchId, option, onSave, isSaved, expandedOv
               {compare.has(compareId) ? 'Compare ✓' : 'Compare'}
             </button>
             <button className="btn" onClick={() => setShowShare(true)}>Share</button>
+            {onDismiss && (
+              <button
+                className="px-2 py-1 rounded text-sm border bg-white text-gray-500 hover:text-gray-700"
+                onClick={handleDismiss}
+                title="Not interested — hide this option and refine suggestions"
+              >
+                Dismiss
+              </button>
+            )}
             {isSaved && (
               <div className="px-3 py-1 rounded text-sm text-gray-600">Saved</div>
             )}
