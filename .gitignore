@@ -63,3 +63,17 @@ node_modules/
 
 # Database migration backup files
 *.sql.bak
+
+# Claude Code agent instructions (not for public repo)
+CLAUDE.md
+
+# Orphan root lockfile (no root package.json)
+/package-lock.json
+
+# Ad-hoc / manual dev test scripts
+scripts/pwsearch.ps1
+scripts/pwsearch2.ps1
+scripts/test_search.js
+scripts/test_search_get.js
+scripts/test_search_get2.js
+scripts/run_tests_iterative.ps1
