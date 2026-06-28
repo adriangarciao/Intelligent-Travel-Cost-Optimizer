@@ -142,4 +142,4 @@ Railway injects `PORT` automatically, and `server.port=${PORT:8080}` in `applica
 
 ## License
 
-TBD
+MIT License
